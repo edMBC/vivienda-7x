@@ -1,0 +1,107 @@
+"use client";
+
+import { useState } from "react";
+import { motion } from "framer-motion";
+import { Card, Input, Button } from "@nextui-org/react";
+
+interface FaseIngresoProps {
+  onSiguiente: (documento: string) => void;
+}
+
+export default function FaseIngreso({ onSiguiente }: FaseIngresoProps) {
+  const [identificacion, setIdentificacion] = useState("");
+
+  const handleSubmit = () => {
+    if (identificacion.trim()) {
+      onSiguiente(identificacion);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 30 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
+      className="w-full max-w-lg mx-auto p-2"
+    >
+      <Card className="p-6 md:p-10 shadow-2xl border-t-8 border-[#ffd000] bg-white/95 backdrop-blur-md rounded-3xl overflow-visible">
+        
+        {/* Story-Drawing Animation: Llave desbloqueando Hogar-Corazón */}
+        <div className="text-center space-y-6 mb-10 relative">
+          <div className="relative w-28 h-28 mx-auto">
+            
+            {/* Círculo de fondo suave */}
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              className="absolute inset-0 bg-gradient-to-tr from-blue-50 to-[#ffd000]/10 rounded-full shadow-inner z-0"
+            />
+
+            {/* SVG Drawing: Key and Heart-House */}
+            <motion.svg
+              viewBox="0 0 100 100"
+              className="absolute inset-0 w-full h-full stroke-[#0067b1] z-10"
+              fill="none"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {/* Dibuja la llave */}
+              <motion.path
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: 1.5, delay: 0.2, ease: "easeInOut" }}
+                d="M 20 50 L 50 50 M 50 50 A 10 10 0 1 0 50 30 A 10 10 0 1 0 50 50 M 20 50 L 20 60 M 28 50 L 28 57"
+              />
+              
+              {/* Dibuja el corazón que se transforma en casa */}
+              <motion.path
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 2, delay: 1.5, ease: "easeInOut" }}
+                d="M 50 50 C 30 30, 10 60, 50 90 C 90 60, 70 30, 50 50 M 35 70 L 35 90 L 65 90 L 65 70"
+              />
+            </motion.svg>
+          </div>
+
+          <div className="space-y-3 px-2 md:px-4">
+            <h1 className="text-3xl md:text-4xl font-black text-[#575756] tracking-tighter leading-tight">
+              Hola, demos el <span className="text-[#0067b1]">primer paso</span>
+            </h1>
+            <p className="text-sm md:text-base text-slate-600 leading-relaxed max-w-sm mx-auto">
+              Sabemos que buscar casa es una gran decisión familiar. Compártenos tu documento y nosotros buscaremos los beneficios que ya has construido.
+            </p>
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <Input
+            size="lg"
+            type="number"
+            label="Tu número de documento"
+            placeholder="Sin puntos ni espacios"
+            value={identificacion}
+            onChange={(e) => setIdentificacion(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+            variant="bordered"
+            color="primary"
+            classNames={{
+              input: "text-center text-2xl font-black tracking-widest text-[#575756] placeholder:font-normal placeholder:tracking-normal",
+              label: "text-center w-full text-slate-500 font-medium",
+              inputWrapper: "h-16 rounded-2xl border-slate-200 hover:border-[#0067b1] focus-within:border-[#0067b1]",
+            }}
+          />
+          <Button
+            size="lg"
+            className="w-full font-extrabold bg-[#0067b1] text-white shadow-xl hover:bg-[#00528f] transition-all h-16 text-lg rounded-2xl transition-transform active:scale-95"
+            onClick={handleSubmit}
+            isDisabled={!identificacion.trim()}
+          >
+            Comenzar mi historia de hogar
+          </Button>
+        </div>
+      </Card>
+    </motion.div>
+  );
+}
