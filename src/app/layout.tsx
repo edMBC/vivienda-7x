@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
-import { LeadProvider } from '@/context/LeadContext';
-import { Providers } from '@/app/providers';
+import { Providers } from './providers';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -20,12 +19,9 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body className={inter.className}>
-        <LeadProvider>
-          <Providers>
-            {/* Aquí inicia el frontend centralizado */}
-            {children}
-          </Providers>
-        </LeadProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
