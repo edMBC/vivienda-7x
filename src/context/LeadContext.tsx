@@ -2,47 +2,59 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-// 1. Definimos las variables matemáticas y de negocio que vamos a recolectar
 interface LeadData {
+  leadId: string;
+  nombre: string;
   isAfiliado: boolean | null;
   proyectoInteres: string;
   rangoSalarial: string;
+  rangoEdad: string;
   pacSubsidios: number;
   marcaFoco: boolean;
   personasCargo: string;
   ahorro: string;
+  segmentoFamilia: string;
+  piramideEmpresas: string;
+  segmentoCaja: string;
 }
 
-// 2. Definimos la estructura del Contexto
 interface LeadContextType {
   lead: LeadData;
   updateLead: (newData: Partial<LeadData>) => void;
   resetLead: () => void;
 }
 
-// Valores por defecto al iniciar la app
 const defaultLeadState: LeadData = {
+  leadId: "",
+  nombre: "",
   isAfiliado: null,
   proyectoInteres: "",
   rangoSalarial: "",
+  rangoEdad: "",
   pacSubsidios: 1,
   marcaFoco: false,
   personasCargo: "0",
   ahorro: "",
+  segmentoFamilia: "",
+  piramideEmpresas: "",
+  segmentoCaja: "",
 };
 
 const LeadContext = createContext<LeadContextType | undefined>(undefined);
 
-// 3. Proveedor del Contexto (Este envuelve a toda la app en layout.tsx)
 export function LeadProvider({ children }: { children: ReactNode }) {
   const [lead, setLead] = useState<LeadData>(defaultLeadState);
 
-  // Función para ir inyectando datos fase por fase sin borrar los anteriores
   const updateLead = (newData: Partial<LeadData>) => {
-    setLead((prev) => ({ ...prev, ...newData }));
+    setLead((prev) => {
+      const updated = { ...prev, ...newData };
+      if (!updated.leadId && updated.nombre) {
+        updated.leadId = `APP-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      }
+      return updated;
+    });
   };
 
-  // Función para limpiar el estado al terminar el proceso
   const resetLead = () => {
     setLead(defaultLeadState);
   };
@@ -54,7 +66,6 @@ export function LeadProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// 4. Hook personalizado para usar el contexto en cualquier página
 export function useLead() {
   const context = useContext(LeadContext);
   if (context === undefined) {

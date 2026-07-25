@@ -30,11 +30,15 @@ export default function SimuladorAfiliadoPage() {
     router.push("/");
   };
 
+  const handleNoEncontrado = () => {
+    router.push("/gamificacion");
+  };
+
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
       <AnimatePresence mode="wait">
         {fase === 0 && (
-          <FaseIngreso key="fase0" onSiguiente={handleSiguienteIngreso} />
+          <FaseIngreso key="fase0" onSiguiente={handleSiguienteIngreso} onNoEncontrado={handleNoEncontrado} />
         )}
 
         {fase === 1 && (

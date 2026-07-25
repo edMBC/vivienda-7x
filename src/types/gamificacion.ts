@@ -8,10 +8,10 @@ export interface OpcionCarta {
   
   export interface DimensionJuego {
     id: number;
-    categoria: "intro" | "rangoSalarial" | "rangoEdad" | "personasCargo" | "tipoAhorro" | "ubicacion";
+    categoria: "intro" | "rangoSalarial" | "rangoEdad" | "personasCargo" | "tipoAhorro" | "ubicacion" | "nombre" | "segmentoFamilia" | "piramideEmpresas";
     titulo: string;
     subtitulo: string;
-    narrativa: string; // Frase cálida que guía el viaje
+    narrativa: string;
     opciones: OpcionCarta[];
   }
   

@@ -6,16 +6,21 @@ import HeaderGamificacion from "@/components/gamificacion/HeaderGamificacion";
 import EstacionCard from "@/components/gamificacion/EstacionCard";
 import MapaProgreso from "@/components/gamificacion/MapaProgreso";
 import { Estacion, DimensionJuego } from "@/types/gamificacion";
+import { useLead } from "@/context/LeadContext";
 
 export default function FlujoNoAfiliados() {
   const router = useRouter();
+  const { updateLead } = useLead();
 
   const [datosJugador, setDatosJugador] = useState({
+    nombre: "",
     rangoSalarial: "",
     rangoEdad: "",
     personasCargo: "",
     tipoAhorro: "",
-    ubicacion: ""
+    ubicacion: "",
+    segmentoFamilia: "",
+    piramideEmpresas: "",
   });
 
   const [esRutaRescate, setEsRutaRescate] = useState(false);
@@ -31,6 +36,14 @@ export default function FlujoNoAfiliados() {
     },
     {
       id: 1,
+      categoria: "nombre",
+      titulo: "Identidad",
+      subtitulo: "Tu nombre",
+      narrativa: "Para personalizar tu experiencia, cuéntanos cómo te llamas. Este nombre aparecerá en tu historial de vivienda.",
+      opciones: []
+    },
+    {
+      id: 2,
       categoria: "rangoSalarial",
       titulo: "Ingresos",
       subtitulo: "Cimientos",
@@ -42,7 +55,7 @@ export default function FlujoNoAfiliados() {
       ]
     },
     {
-      id: 2,
+      id: 3,
       categoria: "rangoEdad",
       titulo: "Edad",
       subtitulo: "Estructura",
@@ -54,7 +67,7 @@ export default function FlujoNoAfiliados() {
       ]
     },
     {
-      id: 3,
+      id: 4,
       categoria: "personasCargo",
       titulo: "Núcleo",
       subtitulo: "Distribución",
@@ -66,7 +79,32 @@ export default function FlujoNoAfiliados() {
       ]
     },
     {
-      id: 4,
+      id: 5,
+      categoria: "segmentoFamilia",
+      titulo: "Grupo",
+      subtitulo: "Composición",
+      narrativa: "Conocer tu estructura familiar nos ayuda a encontrar la vivienda perfecta para tu núcleo.",
+      opciones: [
+        { id: "g1", valor: "Sin Grupo", etiqueta: "Solo", descripcion: "Vivo solo o no tengo grupo familiar establecido", puntos: 50 },
+        { id: "g2", valor: "Pareja Conyugal", etiqueta: "En Pareja", descripcion: "Vivo con mi pareja o cónyuge", puntos: 50 },
+        { id: "g3", valor: "Nuclear Integrada", etiqueta: "Nuclear", descripcion: "Vivo con pareja e hijos o solo hijos", puntos: 50 },
+        { id: "g4", valor: "Ampliada", etiqueta: "Ampliada", descripcion: "Mi hogar incluye otros familiares (padres, hermanos, etc.)", puntos: 50 }
+      ]
+    },
+    {
+      id: 6,
+      categoria: "piramideEmpresas",
+      titulo: "Empresa",
+      subtitulo: "Sector",
+      narrativa: "El tipo de empresa donde trabajas influye en los beneficios y convenios disponibles para ti.",
+      opciones: [
+        { id: "p1", valor: "TAU", etiqueta: "TAU", descripcion: "Microempresas y empresas pequeñas con convenio", puntos: 50 },
+        { id: "p2", valor: "GAMMA", etiqueta: "GAMMA", descripcion: "Empresas medianas y grandes con beneficios", puntos: 50 },
+        { id: "p3", valor: "XI", etiqueta: "Independiente", descripcion: "Trabajo por cuenta propia o sin convenio empresarial", puntos: 50 }
+      ]
+    },
+    {
+      id: 7,
       categoria: "tipoAhorro",
       titulo: "Ahorro",
       subtitulo: "Capital",
@@ -78,7 +116,7 @@ export default function FlujoNoAfiliados() {
       ]
     },
     {
-      id: 5,
+      id: 8,
       categoria: "ubicacion",
       titulo: "Zona",
       subtitulo: "Techo",
@@ -91,13 +129,9 @@ export default function FlujoNoAfiliados() {
     }
   ];
 
-  const [estaciones, setEstaciones] = useState<Estacion[]>([
-    { id: 1, completada: false },
-    { id: 2, completada: false },
-    { id: 3, completada: false },
-    { id: 4, completada: false },
-    { id: 5, completada: false }
-  ]);
+  const [estaciones, setEstaciones] = useState<Estacion[]>(
+    dimensiones.map((_, idx) => ({ id: idx + 1, completada: false }))
+  );
 
   const seleccionarCarta = (categoria: string, valor: string) => {
     if (categoria === "intro") return;
@@ -109,18 +143,31 @@ export default function FlujoNoAfiliados() {
 
     setDatosJugador(prev => ({ ...prev, [categoria]: valor }));
 
+    const idxMap: Record<string, number> = {
+      nombre: 1, rangoSalarial: 2, rangoEdad: 3, personasCargo: 4,
+      segmentoFamilia: 5, piramideEmpresas: 6, tipoAhorro: 7, ubicacion: 8,
+    };
+
     setEstaciones(prev => prev.map((e, idx) => {
-      if (categoria === "rangoSalarial" && idx === 0) return { ...e, completada: true };
-      if (categoria === "rangoEdad" && idx === 1) return { ...e, completada: true };
-      if (categoria === "personasCargo" && idx === 2) return { ...e, completada: true };
-      if (categoria === "tipoAhorro" && idx === 3) return { ...e, completada: true };
-      if (categoria === "ubicacion" && idx === 4) return { ...e, completada: true };
+      if (idx === idxMap[categoria]) return { ...e, completada: true };
       return e;
     }));
   };
 
   const progresoTotal = (estaciones.filter((e) => e.completada).length / estaciones.length) * 100;
   const puntosAcumulados = estaciones.filter((e) => e.completada).length * 50;
+
+  const handleFinalizar = () => {
+    updateLead({
+      nombre: datosJugador.nombre,
+      isAfiliado: false,
+      rangoEdad: datosJugador.rangoEdad,
+      personasCargo: datosJugador.personasCargo,
+      segmentoFamilia: datosJugador.segmentoFamilia,
+      piramideEmpresas: datosJugador.piramideEmpresas,
+    });
+    router.push("/afiliado/simulador");
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 p-4 flex flex-col justify-between w-full overflow-x-hidden space-y-4">
@@ -132,7 +179,8 @@ export default function FlujoNoAfiliados() {
           datosJugador={datosJugador}
           esRutaRescate={esRutaRescate}
           onSeleccionarCarta={seleccionarCarta}
-          onFinalizarConstruccion={() => router.push("/afiliado/simulador")}
+          onFinalizarConstruccion={handleFinalizar}
+          showNombreInput={true}
         />
       </div>
 

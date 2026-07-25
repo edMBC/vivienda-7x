@@ -14,21 +14,23 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
-  useDisclosure
+  useDisclosure,
+  Spinner
 } from "@nextui-org/react";
+import { scoreLead, mapLeadToFeatures, getProyectos, Proyecto } from "@/lib/scoring";
+import { getAllLeads, LeadRecord } from "@/lib/supabase";
 
 interface Lead {
-  id: number;
+  id: string;
   nombre: string;
+  documento: string;
   proyecto: string;
-  ingresos: string;
   afiliado: boolean;
   score: number;
   status: "verde" | "amarillo" | "rojo";
-  empresa: string;
   contactado: boolean;
   bloqueado: boolean;
-  telefono: string;
+  fuente: "afiliado" | "app";
 }
 
 export default function AsesorDashboard() {
@@ -39,7 +41,7 @@ export default function AsesorDashboard() {
   const [amarillosContactados, setAmarillosContactados] = useState(0);
   const metaAmarillos = 2;
   const [puntosTotales, setPuntosTotales] = useState(140);
-  const [filtroEstado, setFiltroEstado] = useState<"todos" | "amarillo" | "verde">("todos");
+  const [filtroEstado, setFiltroEstado] = useState<"todos" | "amarillo" | "verde" | "rojo" | "app">("todos");
   const [notificacionDesbloqueo, setNotificacionDesbloqueo] = useState(false);
   const [saludo, setSaludo] = useState({ titulo: "Bienvenido, Asesor", sub: "Ecosistema de asignación y movilidad habitacional" });
 
@@ -63,73 +65,57 @@ export default function AsesorDashboard() {
     }
   }, []);
 
-  const [leads, setLeads] = useState<Lead[]>([
-    {
-      id: 1,
-      nombre: "Laura Sofía Gómez",
-      proyecto: "Bosques de Turpial",
-      ingresos: "Hasta 2 SMMLV",
-      afiliado: false,
-      score: 68,
-      status: "amarillo",
-      empresa: "Independiente",
-      contactado: false,
-      bloqueado: false,
-      telefono: "573109876543"
-    },
-    {
-      id: 2,
-      nombre: "Andrés Felipe Castro",
-      proyecto: "Bosques de Arrayán",
-      ingresos: "Entre 2 y 4 SMMLV",
-      afiliado: true,
-      score: 72,
-      status: "amarillo",
-      empresa: "Nutresa",
-      contactado: false,
-      bloqueado: false,
-      telefono: "573001234567"
-    },
-    {
-      id: 3,
-      nombre: "María Fernanda Torres",
-      proyecto: "Bosques de Arrayán",
-      ingresos: "Hasta 2 SMMLV",
-      afiliado: true,
-      score: 95,
-      status: "verde",
-      empresa: "Grupo Éxito",
-      contactado: false,
-      bloqueado: true,
-      telefono: "573155550192"
-    },
-    {
-      id: 4,
-      nombre: "Carlos Eduardo Ruiz",
-      proyecto: "La Macarena",
-      ingresos: "Entre 2 y 4 SMMLV",
-      afiliado: true,
-      score: 88,
-      status: "verde",
-      empresa: "Bancolombia",
-      contactado: false,
-      bloqueado: true,
-      telefono: "573204448811"
-    },
-    {
-      id: 5,
-      nombre: "Jorge Eliecer Silva",
-      proyecto: "Monguí",
-      ingresos: "Más de 4 SMMLV",
-      afiliado: false,
-      score: 35,
-      status: "rojo",
-      empresa: "Sin Convenio",
-      contactado: false,
-      bloqueado: false,
-      telefono: "573112223344"
+  const [leads, setLeads] = useState<Lead[]>([]);
+  const [loadingLeads, setLoadingLeads] = useState(true);
+
+  useEffect(() => {
+    async function loadLeads() {
+      try {
+        const dbLeads = await getAllLeads();
+        const proyectos = await getProyectos();
+
+        if (dbLeads.length > 0) {
+          const scored = await Promise.all(
+            dbLeads.map(async (dbLead) => {
+              const features = mapLeadToFeatures({
+                isAfiliado: dbLead.afiliacion === "Afiliado",
+                rangoEdad: dbLead.rango_edad,
+                personasCargo: dbLead.personas_a_cargo,
+                proyectoInteres: dbLead.proyecto,
+                segmentoFamilia: dbLead.segmento_familia,
+                piramideEmpresas: dbLead.piramide_empresas,
+                segmentoCaja: dbLead.segmento_caja,
+              });
+              const proyecto = proyectos.find((p) => p.nombre === dbLead.proyecto);
+              if (proyecto) features.Valor_Vivienda = proyecto.vlr_m / 10_000;
+              const result = await scoreLead(features);
+              return {
+                id: dbLead.id,
+                nombre: dbLead.nombre,
+                documento: dbLead.documento,
+                proyecto: dbLead.proyecto,
+                afiliado: dbLead.afiliacion === "Afiliado",
+                score: Math.round(result.score * 100),
+                status: result.semaforo.toLowerCase() as "verde" | "amarillo" | "rojo",
+                contactado: false,
+                bloqueado: result.semaforo === "VERDE",
+                fuente: (dbLead.documento.startsWith("APP-") ? "app" : "afiliado") as "afiliado" | "app",
+              };
+            })
+          );
+          setLeads(scored);
+        } else {
+          setLeads([]);
+        }
+      } catch (err) {
+        console.error("Error loading leads:", err);
+        setLeads([]);
+      } finally {
+        setLoadingLeads(false);
+      }
     }
-  ]);
+    loadLeads();
+  }, []);
 
   const handleAbrirGestion = (lead: Lead) => {
     setLeadActivo(lead);
@@ -186,7 +172,7 @@ export default function AsesorDashboard() {
       mensaje = `¡Hola ${lead.nombre}! Tu radicación prioritaria para el proyecto ${lead.proyecto} está lista para la entrega de llaves y firma. Avancemos con el cierre formal del inmueble.`;
     }
     
-    const url = `https://api.whatsapp.com/send?phone=${lead.telefono}&text=${encodeURIComponent(mensaje)}`;
+    const url = `https://api.whatsapp.com/send?phone=573000000000&text=${encodeURIComponent(mensaje)}`;
     window.open(url, "_blank");
     
     handleAbrirGestion(lead);
@@ -194,8 +180,17 @@ export default function AsesorDashboard() {
 
   const leadsFiltrados = leads.filter((l) => {
     if (filtroEstado === "todos") return true;
+    if (filtroEstado === "app") return l.fuente === "app";
     return l.status === filtroEstado;
   });
+
+  const stats = {
+    total: leads.length,
+    desdeApp: leads.filter(l => l.fuente === "app").length,
+    verdes: leads.filter(l => l.status === "verde").length,
+    amarillos: leads.filter(l => l.status === "amarillo").length,
+    rojos: leads.filter(l => l.status === "rojo").length,
+  };
 
   return (
     <main className="min-h-screen bg-slate-50 p-3 sm:p-6 flex flex-col justify-between w-full overflow-x-hidden pb-20 sm:pb-8 space-y-4">
@@ -213,7 +208,7 @@ export default function AsesorDashboard() {
         </div>
       )}
 
-      {/* Header con Botón de Cerrar Sesión */}
+      {/* Header */}
       <header className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-700 flex-shrink-0">
@@ -240,7 +235,7 @@ export default function AsesorDashboard() {
         </div>
       </header>
 
-      {/* Banner del Desafío con la Leyenda Explicativa del Semáforo */}
+      {/* Banner */}
       <Card className="border-none shadow-md rounded-2xl bg-gradient-to-br from-[#0067b1] via-[#00528f] to-slate-900 text-white">
         <CardBody className="p-4 sm:p-5 space-y-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -261,7 +256,6 @@ export default function AsesorDashboard() {
             </div>
           </div>
 
-          {/* EXPLICACIÓN GRÁFICA DEL SEMÁFORO DEL PROYECTO */}
           <div className="pt-3 border-t border-white/10 grid grid-cols-3 gap-2 text-center">
             <div className="bg-red-500/10 border border-red-500/30 p-2 rounded-xl">
               <div className="w-2 h-2 rounded-full bg-red-500 mx-auto mb-1 animate-pulse" />
@@ -282,91 +276,128 @@ export default function AsesorDashboard() {
         </CardBody>
       </Card>
 
+      {/* Stats */}
+      <div className="grid grid-cols-5 gap-2">
+        <div className="bg-white p-3 rounded-xl border border-slate-200 text-center">
+          <p className="text-2xl font-black text-slate-700">{stats.total}</p>
+          <p className="text-[10px] font-bold text-slate-400 uppercase">Total</p>
+        </div>
+        <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 text-center">
+          <p className="text-2xl font-black text-purple-600">{stats.desdeApp}</p>
+          <p className="text-[10px] font-bold text-purple-500 uppercase">App</p>
+        </div>
+        <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 text-center">
+          <p className="text-2xl font-black text-emerald-600">{stats.verdes}</p>
+          <p className="text-[10px] font-bold text-emerald-500 uppercase">Verdes</p>
+        </div>
+        <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-center">
+          <p className="text-2xl font-black text-amber-600">{stats.amarillos}</p>
+          <p className="text-[10px] font-bold text-amber-500 uppercase">Amarillos</p>
+        </div>
+        <div className="bg-red-50 p-3 rounded-xl border border-red-200 text-center">
+          <p className="text-2xl font-black text-red-600">{stats.rojos}</p>
+          <p className="text-[10px] font-bold text-red-500 uppercase">Rojos</p>
+        </div>
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs w-full">
         <button onClick={() => setFiltroEstado("todos")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "todos" ? "bg-[#0067b1] text-white shadow-xs" : "text-slate-500"}`}>Todos</button>
-        <button onClick={() => setFiltroEstado("amarillo")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "amarillo" ? "bg-amber-400 text-slate-900 shadow-xs" : "text-slate-500"}`}>Plan Semilla</button>
-        <button onClick={() => setFiltroEstado("verde")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "verde" ? "bg-emerald-500 text-white shadow-xs" : "text-slate-500"}`}>Cierres Directos</button>
+        <button onClick={() => setFiltroEstado("app")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "app" ? "bg-purple-500 text-white shadow-xs" : "text-slate-500"}`}>App</button>
+        <button onClick={() => setFiltroEstado("amarillo")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "amarillo" ? "bg-amber-400 text-slate-900 shadow-xs" : "text-slate-500"}`}>Semilla</button>
+        <button onClick={() => setFiltroEstado("verde")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "verde" ? "bg-emerald-500 text-white shadow-xs" : "text-slate-500"}`}>Cierres</button>
+        <button onClick={() => setFiltroEstado("rojo")} className={`flex-1 py-2 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all ${filtroEstado === "rojo" ? "bg-red-500 text-white shadow-xs" : "text-slate-500"}`}>Incubar</button>
       </div>
 
-      {/* FEED DE TARJETAS */}
+      {/* Feed de tarjetas */}
       <div className="space-y-2.5">
-        {leadsFiltrados.map((lead, index) => {
-          const esVerde = lead.status === "verde";
-          const esAmarillo = lead.status === "amarillo";
-          const esRojo = lead.status === "rojo";
+        {loadingLeads ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <Spinner size="lg" color="primary" />
+            <p className="text-slate-400 font-bold text-sm">Cargando leads desde la base de datos...</p>
+          </div>
+        ) : leadsFiltrados.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-3">
+            <p className="text-slate-400 font-bold text-sm">No hay leads para mostrar</p>
+          </div>
+        ) : (
+          leadsFiltrados.map((lead, index) => {
+            const esVerde = lead.status === "verde";
+            const esAmarillo = lead.status === "amarillo";
+            const esRojo = lead.status === "rojo";
 
-          return (
-            <div
-              key={lead.id}
-              className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 relative overflow-hidden ${
-                lead.bloqueado 
-                  ? "bg-slate-100 border-slate-200/60 opacity-60 select-none" 
-                  : lead.contactado
-                  ? "bg-emerald-50/40 border-emerald-200"
-                  : "bg-white border-slate-200 shadow-sm active:scale-[0.99] hover:border-[#0067b1]"
-              }`}
-            >
-              
-              <div className="flex justify-between items-start gap-2">
-                <div className="flex items-center gap-3 min-w-0 w-full">
-                  
-                  {/* MICRO-INDICADOR LED TIPO SEMÁFORO EN LÍNEA */}
-                  <div className="flex flex-col items-center justify-center flex-shrink-0 gap-1 bg-slate-50 border border-slate-200 p-1 rounded-lg w-7 h-14">
-                    <span className={`w-2.5 h-2.5 rounded-full ${esRojo ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse" : "bg-slate-200"}`} />
-                    <span className={`w-2.5 h-2.5 rounded-full ${esAmarillo ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)] animate-pulse" : "bg-slate-200"}`} />
-                    <span className={`w-2.5 h-2.5 rounded-full ${esVerde && !lead.bloqueado ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" : "bg-slate-200"}`} />
-                  </div>
-                  
-                  <div className="min-w-0 flex-grow pl-1">
-                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">
-                      Peldaño del Tablero {index + 1}
-                    </span>
-                    <h3 className="font-extrabold text-sm text-slate-700 truncate leading-tight">
-                      {lead.bloqueado ? "Cliente Bloqueado por Reto" : lead.nombre}
-                    </h3>
-                    <p className="text-[11px] font-bold text-[#0067b1] mt-0.5 truncate">
-                      {lead.proyecto} • <span className="text-slate-400 font-medium">{lead.bloqueado ? "Completa la racha de amarillos" : lead.empresa}</span>
-                    </p>
+            return (
+              <div
+                key={lead.id}
+                className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-3 relative overflow-hidden ${
+                  lead.bloqueado 
+                    ? "bg-slate-100 border-slate-200/60 opacity-60 select-none" 
+                    : lead.contactado
+                    ? "bg-emerald-50/40 border-emerald-200"
+                    : "bg-white border-slate-200 shadow-sm active:scale-[0.99] hover:border-[#0067b1]"
+                }`}
+              >
+                
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex items-center gap-3 min-w-0 w-full">
+                    
+                    {/* LED semáforo */}
+                    <div className="flex flex-col items-center justify-center flex-shrink-0 gap-1 bg-slate-50 border border-slate-200 p-1 rounded-lg w-7 h-14">
+                      <span className={`w-2.5 h-2.5 rounded-full ${esRojo ? "bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.7)] animate-pulse" : "bg-slate-200"}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${esAmarillo ? "bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.7)] animate-pulse" : "bg-slate-200"}`} />
+                      <span className={`w-2.5 h-2.5 rounded-full ${esVerde && !lead.bloqueado ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.7)]" : "bg-slate-200"}`} />
+                    </div>
+                    
+                    <div className="min-w-0 flex-grow pl-1">
+                      <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">
+                        Lead #{index + 1} • {lead.fuente === "app" ? "📱 App" : lead.afiliado ? "Afiliado" : "No Afiliado"}
+                      </span>
+                      <h3 className="font-extrabold text-sm text-slate-700 truncate leading-tight">
+                        {lead.bloqueado ? "Cliente Bloqueado por Reto" : lead.nombre}
+                      </h3>
+                      <p className="text-[11px] font-bold text-[#0067b1] mt-0.5 truncate">
+                        {lead.proyecto} • <span className="text-slate-400 font-medium">{lead.documento}</span>
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {/* Botones con Acciones Semánticas según el Semáforo */}
-              <div className="w-full pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
-                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Score: <span className="text-slate-600 font-black text-xs">{lead.score}%</span>
+                {/* Botones */}
+                <div className="w-full pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Score: <span className="text-slate-600 font-black text-xs">{lead.score}%</span>
+                  </div>
+
+                  {lead.bloqueado ? (
+                    <Button size="sm" className="bg-slate-200 text-slate-400 font-black text-[10px] uppercase rounded-lg cursor-not-allowed">
+                      Bloqueado
+                    </Button>
+                  ) : lead.contactado ? (
+                    <Chip size="sm" color="success" variant="flat" className="font-black text-[10px] uppercase border border-emerald-200">
+                      Gestionado ✓
+                    </Chip>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className={`font-black text-white text-xs h-9 rounded-xl px-4 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 ${
+                        esAmarillo ? "bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 animate-pulse" : esRojo ? "bg-red-500 hover:bg-red-600" : "bg-emerald-600 hover:bg-emerald-700"
+                      }`}
+                      onClick={() => abrirWhatsApp(lead)}
+                    >
+                      <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
+                        <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.006 5.284 5.296.001 11.82.001c3.161 0 6.131 1.23 8.366 3.465 2.235 2.236 3.461 5.207 3.46 8.371-.006 6.535-5.304 11.816-11.83 11.816-2.007 0-3.98-.51-5.742-1.483L0 24zm6.59-4.846c1.6.95 3.197 1.45 4.817 1.45a9.887 9.887 0 0 0 9.89-9.88 9.877 9.877 0 0 0-9.89-9.879A9.89 9.89 0 0 0 1.94 11.83a9.922 9.922 0 0 0 1.515 5.21l-1.001 3.653 3.737-.98c1.51.824 3.01 1.42 4.462 1.42z" />
+                      </svg>
+                      {esAmarillo && "Madurar Ahorro por WhatsApp"}
+                      {esRojo && "Incubar Prospecto"}
+                      {esVerde && "Entregar Llaves y Firma"}
+                    </Button>
+                  )}
                 </div>
 
-                {lead.bloqueado ? (
-                  <Button size="sm" className="bg-slate-200 text-slate-400 font-black text-[10px] uppercase rounded-lg cursor-not-allowed">
-                    🔒 Bloqueado
-                  </Button>
-                ) : lead.contactado ? (
-                  <Chip size="sm" color="success" variant="flat" className="font-black text-[10px] uppercase border border-emerald-200">
-                    Gestionado ✓
-                  </Chip>
-                ) : (
-                  <Button
-                    size="sm"
-                    className={`font-black text-white text-xs h-9 rounded-xl px-4 flex items-center gap-1.5 shadow-sm transition-transform active:scale-95 ${
-                      esAmarillo ? "bg-gradient-to-r from-amber-400 to-amber-500 text-slate-900 animate-pulse" : esRojo ? "bg-red-500 hover:bg-red-600" : "bg-emerald-600 hover:bg-emerald-700"
-                    }`}
-                    onClick={() => abrirWhatsApp(lead)}
-                  >
-                    <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
-                      <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.006 5.284 5.296.001 11.82.001c3.161 0 6.131 1.23 8.366 3.465 2.235 2.236 3.461 5.207 3.46 8.371-.006 6.535-5.304 11.816-11.83 11.816-2.007 0-3.98-.51-5.742-1.483L0 24zm6.59-4.846c1.6.95 3.197 1.45 4.817 1.45a9.887 9.887 0 0 0 9.89-9.88 9.877 9.877 0 0 0-9.89-9.879A9.89 9.89 0 0 0 1.94 11.83a9.922 9.922 0 0 0 1.515 5.21l-1.001 3.653 3.737-.98c1.51.824 3.01 1.42 4.462 1.42z" />
-                    </svg>
-                    {esAmarillo && "Madurar Ahorro por WhatsApp"}
-                    {esRojo && "Incubar Prospecto"}
-                    {esVerde && "Entregar Llaves y Firma"}
-                  </Button>
-                )}
               </div>
-
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Modal */}
@@ -382,7 +413,7 @@ export default function AsesorDashboard() {
                 {leadActivo && (
                   <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs">
                     <p className="font-black text-slate-700">{leadActivo.nombre}</p>
-                    <p className="text-[#0067b1] font-bold mt-0.5">{leadActivo.proyecto}</p>
+                    <p className="text-[#0067b1] font-bold mt-0.5">{leadActivo.proyecto} • {leadActivo.documento}</p>
                   </div>
                 )}
               </ModalBody>
