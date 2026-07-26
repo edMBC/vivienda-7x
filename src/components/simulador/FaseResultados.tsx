@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Card, CardBody, CardHeader, Button, Progress, Image, Divider, Spinner } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Button, Progress, Divider, Spinner } from "@nextui-org/react";
 import { useLead } from "@/context/LeadContext";
 import { getProyectos, scoreLead, mapLeadToFeatures, Proyecto as ApiProyecto, ScoreResponse } from "@/lib/scoring";
 import { saveLead } from "@/lib/supabase";
+import { getProyectoImagen } from "@/lib/proyectoImages"; 
+import DetallesProyectoModal from "./DetallesProyectoModal"; // <-- NUEVA IMPORTACIÓN
 
 export interface Proyecto {
   id: number;
@@ -26,32 +28,8 @@ interface ProyectoConScore extends Proyecto {
   loading: boolean;
 }
 
-const IMAGENES: Record<string, string> = {
-  "Bosques de Arrayan": "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&q=80&w=800",
-  "Bosques de Turpial": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
-  "La Macarena": "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=800",
-  "Mongui": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=800",
-  "Pamplona": "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&q=80&w=800",
-  "Reserva de Guayacan": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=800",
-  "Reserva de Saman": "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&q=80&w=800",
-  "INARI": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
-  "La Arboleda": "https://images.unsplash.com/photo-1583608205776-bfd35f6d9f83?auto=format&fit=crop&q=80&w=800",
-  "Los Nogales": "https://images.unsplash.com/photo-1600607687644-aac4c3eac7f4?auto=format&fit=crop&q=80&w=800",
-  "Karakali": "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&q=80&w=800",
-  "Versalles": "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?auto=format&fit=crop&q=80&w=800",
-  "Abeto": "https://images.unsplash.com/photo-1600566752355-35792bedcfea?auto=format&fit=crop&q=80&w=800",
-  "Payande": "https://images.unsplash.com/photo-1583608205776-bfd35f6d9f83?auto=format&fit=crop&q=80&w=800",
-  "Araucaria": "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&q=80&w=800",
-  "Vibonce": "https://images.unsplash.com/photo-1600566753151-384129cf4e3e?auto=format&fit=crop&q=80&w=800",
-  "Verde Esperanza": "https://images.unsplash.com/photo-1583608205776-bfd35f6d9f83?auto=format&fit=crop&q=80&w=800",
-  "Maipore": "https://images.unsplash.com/photo-1600566752229-250ed79470f6?auto=format&fit=crop&q=80&w=800",
-  "Bogota (General)": "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&q=80&w=800",
-  "Municipios Norte": "https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&q=80&w=800",
-  "Municipios Sur": "https://images.unsplash.com/photo-1600573472592-401b489a3cdc?auto=format&fit=crop&q=80&w=800",
-};
-
 const ZONA_MAP: Record<string, string> = {
-  "Bogota": "Bogota",
+  "Bogota": "Bogotá",
   "Municipios Norte": "Municipios Norte",
   "Municipios Sur": "Municipios Sur",
 };
@@ -61,23 +39,17 @@ function formatPrice(vlr: number): string {
   return `Desde ${smmlv} SMMLV`;
 }
 
-function getScoreColor(score: number): "success" | "warning" | "danger" {
-  if (score >= 0.70) return "success";
-  if (score >= 0.55) return "warning";
-  return "danger";
-}
-
 function getEstadoText(score: number): string {
   if (score >= 0.90) return "¡Tu casa te espera!";
-  if (score >= 0.70) return "Buena opcion";
+  if (score >= 0.70) return "Buena opción";
   if (score >= 0.50) return "Meta a la vista";
   return "Plan de Futuro";
 }
 
 function getFaltanteText(score: number): string {
-  if (score >= 0.90) return "Todo esta alineado. Solo requieres formalizar tu firma para separar tu hogar.";
-  if (score >= 0.70) return "Estas muy cerca. Un pequeno ajuste en tu plan de ahorro o sumar un subsidio PAC lo hara posible.";
-  if (score >= 0.50) return "Con nuestro Plan Semilla, te guiaremos paso a paso para que alcances esta meta en los proximos meses.";
+  if (score >= 0.90) return "Todo está alineado. Solo requieres formalizar tu firma para separar tu hogar.";
+  if (score >= 0.70) return "Estás muy cerca. Un pequeño ajuste en tu plan de ahorro o sumar un subsidio PAC lo hará posible.";
+  if (score >= 0.50) return "Con nuestro Plan Semilla, te guiaremos paso a paso para que alcances esta meta en los próximos meses.";
   return "Trabajemos juntos para mejorar tu perfil y acceder a mejores opciones.";
 }
 
@@ -91,6 +63,9 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
   const [loading, setLoading] = useState(true);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<ProyectoConScore | null>(null);
   const [guardando, setGuardando] = useState(false);
+  
+  // Estado para controlar el modal de detalles del proyecto
+  const [showDetallesModal, setShowDetallesModal] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -121,8 +96,8 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
         const mapped: ProyectoConScore[] = top5.map((p, idx) => ({
           id: idx + 1,
           nombre: p.nombre,
-          zona: ZONA_MAP[apiProyectos.find(ap => ap.nombre === p.nombre)?.ubicacion || ""] || "Bogota",
-          imagen: IMAGENES[p.nombre] || IMAGENES["Bosques de Arrayan"],
+          zona: ZONA_MAP[apiProyectos.find(ap => ap.nombre === p.nombre)?.ubicacion || ""] || "Bogotá",
+          imagen: getProyectoImagen(p.nombre), 
           precio: formatPrice(p.vlr_m),
           scoreRequerido: 70,
           viabilidadActual: Math.round(p.result.score * 100),
@@ -180,7 +155,9 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
         <Spinner size="lg" color="primary" />
-        <p className="text-slate-500 font-bold">Analizando tu perfil con nuestro modelo de IA...</p>
+        <p className="text-slate-500 font-bold text-sm text-center px-4">
+          Analizando tu perfil con nuestro motor de IA habitacional...
+        </p>
       </div>
     );
   }
@@ -190,55 +167,62 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
       initial={{ opacity: 0, y: 30 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      className="w-full max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-8 p-2 sm:p-4"
+      className="w-full max-w-7xl mx-auto flex flex-col lg:grid lg:grid-cols-12 gap-6 lg:gap-8 p-3 sm:p-6"
     >
-      <div className="lg:col-span-7 space-y-6">
-        <div className="mb-2 px-2 text-center lg:text-left">
-          <h2 className="text-4xl md:text-5xl font-black text-[#575756] tracking-tighter leading-tight">
-            Descubre tu <span className="text-[#0067b1]">proximo hogar</span>
+      {/* SECCIÓN IZQUIERDA: Grid de proyectos alternativos */}
+      <div className="lg:col-span-7 space-y-6 order-2 lg:order-1 pt-4 lg:pt-0">
+        <div className="mb-4 px-2 text-center lg:text-left">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#575756] tracking-tighter leading-tight">
+            Descubre tu <span className="text-[#0067b1]">próximo hogar</span>
           </h2>
-          <p className="text-slate-600 mt-3 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto lg:mx-0 font-normal">
-            Nuestro modelo de IA analizo tu perfil y estas son las opciones donde vemos florecer tu futuro familiar.
+          <p className="text-slate-400 mt-2 sm:mt-3 text-xs sm:text-sm uppercase font-black tracking-widest">
+            Simulador de Match Habitacional Inteligente
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
           {proyectos.map((proyecto) => (
             <Card
               key={proyecto.id}
               isPressable
-              onPress={() => setProyectoSeleccionado(proyecto)}
-              className={`border-2 rounded-3xl overflow-hidden transition-all duration-300 ${
+              onPress={() => {
+                setProyectoSeleccionado(proyecto);
+                window.scrollTo({ top: 0, behavior: 'smooth' }); 
+              }}
+              className={`border-2 rounded-3xl overflow-hidden transition-all duration-300 w-full bg-white ${
                 proyectoSeleccionado?.id === proyecto.id
-                  ? "border-[#0067b1] shadow-2xl scale-[1.03] ring-8 ring-blue-50"
-                  : "border-transparent hover:border-slate-200 hover:shadow-lg bg-white"
+                  ? "border-[#0067b1] shadow-2xl scale-[1.02] bg-slate-50/50"
+                  : "border-slate-100 hover:border-slate-200 hover:shadow-lg"
               }`}
             >
-              <Image
+              <img
                 src={proyecto.imagen}
                 alt={proyecto.nombre}
-                className="object-cover h-48 sm:h-52 w-full rounded-none z-0"
+                className="object-cover h-40 sm:h-48 w-full z-0 bg-slate-100 block transition-transform duration-300"
+                onError={(e) => {
+                  e.currentTarget.src = "/images/propiedades/boseque_de_arrayan.png";
+                }}
               />
-              <CardBody className="p-5 bg-white space-y-2">
+              <CardBody className="p-4 sm:p-5 space-y-2">
                 <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-black text-[#0067b1] bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-blue-100">
+                  <span className="text-[9px] sm:text-[10px] font-black text-[#0067b1] bg-blue-50 px-2 py-1 rounded-lg uppercase tracking-widest border border-blue-100">
                     {proyecto.zona}
                   </span>
                   {proyecto.scoreResult && (
-                    <span className={`text-[11px] font-black text-white px-3 py-1 rounded-lg shadow-md ${
-                      proyecto.scoreResult.score >= 0.70 ? "bg-emerald-500" :
-                      proyecto.scoreResult.score >= 0.55 ? "bg-amber-400 text-slate-900" :
-                      "bg-red-500"
+                    <span className={`text-[10px] sm:text-[11px] font-black text-white px-2.5 py-1 rounded-lg shadow-xs ${
+                      proyecto.scoreResult.score >= 0.70 ? "bg-emerald-600" :
+                      proyecto.scoreResult.score >= 0.55 ? "bg-amber-500 text-slate-900" :
+                      "bg-red-600"
                     }`}>
                       {proyecto.scoreResult.semaforo}
                     </span>
                   )}
                 </div>
-                <h3 className="font-extrabold text-[#575756] text-xl tracking-tight">{proyecto.nombre}</h3>
-                <p className="text-sm font-semibold text-[#0067b1] mt-1">{proyecto.precio}</p>
+                <h3 className="font-extrabold text-[#575756] text-lg sm:text-xl tracking-tight leading-tight mt-1 truncate">{proyecto.nombre}</h3>
+                <p className="text-xs sm:text-sm font-semibold text-[#0067b1]">{proyecto.precio}</p>
                 {proyecto.scoreResult && (
-                  <p className="text-xs text-slate-400 font-bold">
-                    Score: {Math.round(proyecto.scoreResult.score * 100)}%
+                  <p className="text-[11px] sm:text-xs text-slate-400 font-bold">
+                    Score Analítico: {Math.round(proyecto.scoreResult.score * 100)}%
                   </p>
                 )}
               </CardBody>
@@ -247,90 +231,132 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
         </div>
       </div>
 
-      <div className="lg:col-span-5 relative mt-6 lg:mt-0">
-        <div className="lg:sticky lg:top-6">
-          <Card className="shadow-2xl border-t-8 border-[#ffd000] overflow-visible rounded-3xl bg-white/95 backdrop-blur-sm">
-            <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-col items-start p-8 md:p-10 rounded-t-2xl">
-              <span className={`inline-block mb-4 font-black text-white shadow-md px-4 py-1.5 text-sm rounded-lg ${
-                (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.70 ? "bg-emerald-500" :
-                (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.55 ? "bg-amber-400 text-slate-900" :
-                "bg-red-500"
-              }`}>
-                {proyectoSeleccionado?.estado}
-              </span>
-              <h2 className="text-3xl md:text-4xl font-black text-[#575756] tracking-tighter">
-                {proyectoSeleccionado?.nombre}
-              </h2>
-              <p className="text-base text-slate-600 mt-4 leading-relaxed font-normal">
-                {proyectoSeleccionado?.descripcion}
-              </p>
-            </CardHeader>
+      {/* SECCIÓN DERECHA: Ficha principal fija del proyecto preseleccionado */}
+      <div className="lg:col-span-5 relative order-1 lg:order-2">
+        <div className="lg:sticky lg:top-6 w-full">
+          <Card className="shadow-2xl border-none overflow-hidden rounded-3xl bg-white w-full">
+            
+            {/* Cabecera Inmersiva (Hero Header) */}
+            <div className="relative h-44 sm:h-52 w-full bg-slate-900 flex flex-col justify-end p-6 overflow-hidden">
+              <img 
+                src={proyectoSeleccionado?.imagen} 
+                alt={proyectoSeleccionado?.nombre}
+                className="absolute inset-0 object-cover w-full h-full opacity-65"
+                onError={(e) => {
+                  e.currentTarget.src = "/images/propiedades/boseque_de_arrayan.png";
+                }}
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent z-10" />
+              
+              <div className="relative z-20 space-y-2">
+                <span className={`inline-block font-black text-white shadow-md px-3 py-1 text-xs rounded-md tracking-wide uppercase ${
+                  (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.70 ? "bg-emerald-600" :
+                  (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.55 ? "bg-amber-500 text-slate-900" :
+                  "bg-red-600"
+                }`}>
+                  {proyectoSeleccionado?.estado}
+                </span>
+                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight leading-none break-words drop-shadow-md">
+                  {proyectoSeleccionado?.nombre}
+                </h2>
+              </div>
+            </div>
 
-            <CardBody className="p-8 md:p-10 space-y-8 bg-white rounded-b-3xl">
-              <div className="space-y-4">
+            {/* Cuerpo Analítico con Acciones de Exploración */}
+            <CardBody className="p-6 sm:p-8 space-y-5 bg-white w-full">
+              
+              {/* CAJA DE SUGERENCIA SUAVE */}
+              <div className="bg-blue-50/70 border border-blue-100 p-3 rounded-2xl">
+                <p className="text-xs text-slate-600 leading-relaxed font-bold tracking-tight text-center">
+                  ✨ Esto es una sugerencia del sistema, pero siempre te acompañamos en tu proceso.
+                </p>
+              </div>
+
+              {/* BOTÓN "VER MÁS INFORMACIÓN" SOLICITADO */}
+              <Button
+                size="sm"
+                variant="flat"
+                className="w-full bg-slate-100 hover:bg-slate-200 text-[#0067b1] font-extrabold text-xs uppercase tracking-wider h-11 rounded-xl border border-slate-200/80 transition-all active:scale-95"
+                onClick={() => setShowDetallesModal(true)}
+              >
+                🔍 Ver más información del proyecto
+              </Button>
+
+              {/* Indicadores de viabilidad */}
+              <div className="space-y-2.5 pt-1">
                 <div className="flex justify-between items-end">
-                  <h4 className="font-extrabold text-[#0067b1] text-sm md:text-base uppercase tracking-wider flex items-center gap-2.5">
-                    <span>Tu score con IA</span>
+                  <h4 className="font-extrabold text-[#0067b1] text-xs sm:text-sm uppercase tracking-wider">
+                    Score de Compatibilidad
                   </h4>
-                  <span className="text-4xl font-black text-slate-700 tracking-tight">
+                  <span className="text-3xl font-black text-slate-700 tracking-tight leading-none">
                     {proyectoSeleccionado?.viabilidadActual}%
                   </span>
                 </div>
-                <div className="relative pt-2">
+                <div className="relative pt-1">
                   <Progress
                     value={proyectoSeleccionado?.viabilidadActual || 0}
                     color={
                       (proyectoSeleccionado?.viabilidadActual || 0) >= 70 ? "success" :
                       (proyectoSeleccionado?.viabilidadActual || 0) >= 55 ? "warning" : "danger"
                     }
-                    className="h-5"
+                    className="h-4"
                     radius="full"
                   />
-                  <div className="flex justify-between text-xs text-slate-500 mt-3 font-bold px-1 relative">
+                  <div className="flex justify-between text-[10px] text-slate-500 mt-2 font-black uppercase tracking-wider px-1 relative">
                     <span>Inicio</span>
                     <span>Ahorro</span>
                     <span>PAC</span>
                     <motion.span
-                      animate={{ y: [0, -3, 0] }}
+                      animate={{ y: [0, -2, 0] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="text-emerald-700 font-extrabold"
+                      className="text-emerald-600 font-black"
                     >
-                      Tu hogar!
+                      ¡Tu hogar!
                     </motion.span>
                   </div>
                 </div>
               </div>
 
-              <Divider className="opacity-60" />
+              <Divider className="opacity-50" />
 
-              <div className="bg-gradient-to-br from-blue-50 to-slate-50 p-6 rounded-2xl border border-blue-100/60 shadow-inner">
-                <h4 className="text-sm md:text-base font-extrabold text-[#0067b1] flex items-center gap-2.5 mb-3">
-                  <span>Que sigue para lograrlo?</span>
+              {/* Qué sigue */}
+              <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
+                  ¿Cuál es el siguiente paso comercial?
                 </h4>
-                <p className="text-sm md:text-base text-slate-700 leading-relaxed font-semibold">
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-semibold">
                   {proyectoSeleccionado?.faltante}
                 </p>
               </div>
 
+              {/* Botón de Selección Principal */}
               <Button
                 size="lg"
                 isLoading={guardando}
-                className={`w-full font-extrabold shadow-xl text-white h-16 text-lg md:text-xl rounded-2xl transition-transform active:scale-95 transition-all duration-300 ${
+                className={`w-full font-black shadow-lg text-white h-14 text-sm sm:text-base rounded-2xl transition-transform active:scale-95 duration-300 uppercase tracking-wider ${
                   (proyectoSeleccionado?.viabilidadActual || 0) >= 70
-                    ? "bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500"
+                    ? "bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600"
                     : "bg-gradient-to-r from-[#0067b1] to-blue-500 hover:from-[#00528f] hover:to-blue-600"
                 }`}
                 onClick={handleSeleccionar}
                 disabled={guardando}
               >
                 {(proyectoSeleccionado?.viabilidadActual || 0) >= 70
-                  ? "Quiero las llaves de mi hogar!"
+                  ? "¡Quiero las llaves de mi hogar!"
                   : "Hablemos para hacerlo realidad"}
               </Button>
             </CardBody>
           </Card>
         </div>
       </div>
+
+      {/* Modal de Información Completa del Proyecto */}
+      <DetallesProyectoModal 
+        isOpen={showDetallesModal} 
+        onClose={() => setShowDetallesModal(false)} 
+        proyecto={proyectoSeleccionado} 
+      />
+
     </motion.div>
   );
 }

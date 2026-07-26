@@ -1,16 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useLead } from "@/context/LeadContext";
 import { Button, Card, CardBody } from "@nextui-org/react";
 import TerminosModal from "@/components/TerminosModal";
+import Image from "next/image";
 
 const ShieldIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
     <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
   </svg>
 );
+
+// Arreglo con los nombres exactos de tus archivos para la Flashcard
+const NOMBRES_IMAGENES = [
+  "abeto", "araucaria", "boseque_de_arrayan", "bosque_de_turpial", 
+  "eldorado", "inari", "karakali", "la_macarena", "losnogales", 
+  "mongui", "pamplona", "payande", "reserva_de_guayacan", "saman", 
+  "tocancipa", "versalles", "vivoonce", "zarzal"
+];
+
+// Generador de rutas (.png) para el carrusel de la tarjeta
+const RUTAS_IMAGENES_CARD = NOMBRES_IMAGENES.map(nombre => `/images/propiedades/${nombre}.png`);
 
 export default function Home() {
   const router = useRouter();
@@ -22,11 +34,17 @@ export default function Home() {
   const [isShaking, setIsShaking] = useState(false);
   const [keyUnlocked, setKeyUnlocked] = useState(false);
 
-  const proyectoCercano = {
-    nombre: "Bosques de Arrayán",
-    descripcion: "Espacios diseñados para que tu familia construya sus mejores recuerdos.",
-    imagenUrl: "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?auto=format&fit=crop&q=80&w=2000",
-  };
+  // Estado para el carrusel de la tarjeta central
+  const [imagenActualIdx, setImagenActualIdx] = useState(0);
+
+  // Efecto para rotar las imágenes de la tarjeta cada 3.5 segundos
+  useEffect(() => {
+    const intervalo = setInterval(() => {
+      setImagenActualIdx((prevIdx) => (prevIdx + 1) % RUTAS_IMAGENES_CARD.length);
+    }, 3500);
+
+    return () => clearInterval(intervalo);
+  }, []);
 
   const handleSeleccionAfiliacion = (isAfiliado: boolean) => {
     if (!termsAccepted) {
@@ -40,10 +58,9 @@ export default function Home() {
     resetLead();
     updateLead({
       isAfiliado,
-      proyectoInteres: proyectoCercano.nombre,
+      proyectoInteres: "Multiples Proyectos VIS",
     });
 
-    // Activar micro-animación de la llave antes de cambiar de ruta
     setKeyUnlocked(true);
     setTimeout(() => {
       if (isAfiliado) {
@@ -55,15 +72,20 @@ export default function Home() {
   };
 
   return (
-    <main className="relative min-h-screen flex flex-col bg-slate-900 justify-between">
+    <main className="relative min-h-screen flex flex-col bg-slate-900 justify-between overflow-hidden">
       
-      {/* Imagen de Fondo Real y Overlay */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat z-0"
-        style={{ backgroundImage: `url(${proyectoCercano.imagenUrl})` }}
-      />
-      <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/90 md:bg-gradient-to-r md:from-black/95 md:via-black/60 md:to-black/30 backdrop-blur-[1px] z-0" />
-
+      {/* Fondo de pantalla Fijo usando el componente de Next.js */}
+<div className="absolute inset-0 z-0">
+  <Image
+    src="/images/landing.webp" // O '/landing.png' según corresponda
+    alt="Fondo Landing"
+    fill
+    priority
+    className="object-cover object-center"
+  />
+</div>
+{/* Filtro oscuro para asegurar el contraste de los textos */}
+<div className="absolute inset-0 bg-gradient-to-b from-black/85 via-black/60 to-black/90 md:bg-gradient-to-r md:from-black/95 md:via-black/65 md:to-black/40 backdrop-blur-[1px] z-10" />
       {/* Header Superior */}
       <header className="relative z-20 w-full max-w-7xl mx-auto flex justify-between items-center p-4 sm:p-6 lg:px-8">
         <div className="flex items-center gap-2">
@@ -84,10 +106,9 @@ export default function Home() {
         </Button>
       </header>
 
-      {/* Layout de Contenido Principal (Estilo Compacto Mobile-First) */}
+      {/* Layout de Contenido Principal */}
       <div className="relative z-10 flex-grow flex flex-col lg:flex-row items-center justify-center w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2 sm:py-8 gap-5 lg:gap-16">
         
-        {/* Copy Emocional */}
         <div className="w-full lg:w-1/2 text-white space-y-2 sm:space-y-4 text-center lg:text-left">
           <span className="inline-block bg-[#ffd000] text-[#575756] font-black text-[10px] sm:text-xs px-2.5 py-0.5 rounded-full uppercase tracking-widest shadow-md">
             Es hora de decir:
@@ -105,22 +126,23 @@ export default function Home() {
           <Card className="w-full bg-white/95 backdrop-blur-xl shadow-2xl border-t-6 border-[#0067b1] p-1 sm:p-3 rounded-2xl overflow-hidden">
             <CardBody className="gap-3 p-3">
               
-              {/* Flashcard con Imagen Real, Trazos Compactos y Micro-Animación de Llave */}
-              <div className="relative rounded-xl overflow-hidden border border-slate-200/60 shadow-xs group aspect-[16/10] sm:aspect-[16/9]">
-                {/* Render de la vivienda de fondo dentro de la flashcard */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-105"
-                  style={{ backgroundImage: `url(${proyectoCercano.imagenUrl})` }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/90 via-slate-900/30 to-black/40" />
+              {/* Flashcard con Carrusel de Imágenes Reales */}
+              <div className="relative rounded-xl overflow-hidden border border-slate-200/60 shadow-xs group aspect-[16/10] sm:aspect-[16/9] bg-slate-900 flex items-center justify-center">
+                
+                {RUTAS_IMAGENES_CARD.map((img, idx) => (
+                  <div 
+                    key={`card-${idx}`}
+                    className={`absolute inset-0 bg-cover bg-center transition-all duration-1000 group-hover:scale-105 ${
+                      idx === imagenActualIdx ? "opacity-100" : "opacity-0"
+                    }`}
+                    style={{ backgroundImage: `url(${img})` }}
+                  />
+                ))}
+                
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/95 via-slate-900/40 to-black/30" />
 
-                {/* Contenido en la parte superior del mockup */}
-                <div className="absolute top-2 left-2 right-2 flex justify-between items-center">
-                  <span className="text-[9px] font-black text-[#575756] bg-[#ffd000] border border-amber-300 px-2 py-0.5 rounded-md shadow-sm uppercase tracking-wider">
-                    Tu Match VIS
-                  </span>
-                  
-                  {/* Micro-Indicador Inmersivo Compacto */}
+                <div className="absolute top-2 left-2 right-2 flex justify-between items-center z-10">
+                                  
                   <div className="flex items-center gap-1 bg-black/40 backdrop-blur-md border border-white/20 px-2 py-0.5 rounded-full text-white">
                     <span className="relative flex h-1.5 w-1.5">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -130,18 +152,13 @@ export default function Home() {
                   </div>
                 </div>
 
-                {/* Texto Inferior y Animación del Trazo de Llave */}
-                <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-4 text-white">
+                <div className="absolute bottom-2 left-3 right-3 flex items-end justify-between gap-4 text-white z-10">
                   <div className="max-w-[75%]">
-                    <h3 className="text-sm sm:text-base font-black tracking-tight leading-tight">
-                      {proyectoCercano.nombre}
-                    </h3>
-                    <p className="text-[10px] sm:text-xs text-slate-200 font-medium line-clamp-1 opacity-90">
-                      {proyectoCercano.descripcion}
+                                       <p className="text-[10px] sm:text-xs text-slate-200 font-medium line-clamp-1 opacity-90 drop-shadow-sm">
+                      Conoce las opciones habitacionales disponibles.
                     </p>
                   </div>
 
-                  {/* Icono de Llave / Candado con efecto de apertura interactivo */}
                   <div className="bg-white/10 backdrop-blur-md p-1.5 rounded-lg border border-white/20 flex items-center justify-center flex-shrink-0 transition-all duration-300 shadow-inner">
                     <svg 
                       xmlns="http://www.w3.org/2000/svg" 
@@ -152,10 +169,8 @@ export default function Home() {
                       className={`w-4 h-4 text-[#ffd000] transition-transform duration-500 ${keyUnlocked ? "rotate-90 scale-110 text-emerald-400" : ""}`}
                     >
                       {keyUnlocked ? (
-                        // Icono de Cerradura Abierta (Cierre Exitoso)
                         <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5V6.75a4.5 4.5 0 119 0v3.75M3.75 21.75h16.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H3.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                       ) : (
-                        // Icono de Llave Compacta (Listo para entrar)
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-.9.43-1.563A6 6 0 1121.75 8.25z" />
                       )}
                     </svg>
@@ -192,8 +207,6 @@ export default function Home() {
               {/* UX de Términos y Condiciones */}
               <div className="pt-2 border-t border-slate-100 flex flex-col gap-1.5">
                 <div className="flex items-center gap-2.5">
-                  
-                  {/* Checkbox Customizado */}
                   <div className="relative flex items-center flex-shrink-0">
                     <input
                       type="checkbox"
@@ -264,7 +277,7 @@ export default function Home() {
       <TerminosModal 
         isOpen={modalAbierto}
         onClose={() => setModalAbierto(false)}
-        onAccept={() => {
+        onAceptar={() => {
           setTermsAccepted(true);
           setValidationError("");
         }}

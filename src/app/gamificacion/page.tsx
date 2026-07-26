@@ -7,10 +7,14 @@ import EstacionCard from "@/components/gamificacion/EstacionCard";
 import MapaProgreso from "@/components/gamificacion/MapaProgreso";
 import { Estacion, DimensionJuego } from "@/types/gamificacion";
 import { useLead } from "@/context/LeadContext";
+import InstruccionesModal from "@/components/gamificacion/InstruccionesModal";
 
 export default function FlujoNoAfiliados() {
   const router = useRouter();
   const { updateLead } = useLead();
+
+  // Estado para controlar la visibilidad del modal de instrucciones (true al iniciar)
+  const [showInstrucciones, setShowInstrucciones] = useState(true);
 
   const [datosJugador, setDatosJugador] = useState({
     nombre: "",
@@ -189,25 +193,39 @@ export default function FlujoNoAfiliados() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 p-4 flex flex-col justify-between w-full overflow-x-hidden space-y-4">
-      <HeaderGamificacion puntosAcumulados={puntosAcumulados} progresoTotal={progresoTotal} />
+    // Gradiente ajustado: más profundo usando slate-200, blue-100 y slate-300
+    <main className="min-h-screen w-full bg-gradient-to-br from-slate-200 via-blue-100/60 to-slate-200 flex flex-col justify-between p-4 relative overflow-hidden space-y-4">
+      
+      {/* Luces de fondo más pronunciadas (mayor opacidad y tamaño ajustado) */}
+      <div className="absolute top-[-5%] left-[-10%] w-[500px] h-[500px] bg-blue-500/15 blur-[120px] rounded-full pointer-events-none z-0" />
+      <div className="absolute bottom-[-10%] right-[-5%] w-[450px] h-[450px] bg-amber-400/20 blur-[110px] rounded-full pointer-events-none z-0" />
 
-      <div className="flex-grow flex items-center justify-center py-1">
-        <EstacionCard 
-          dimensiones={dimensiones}
-          datosJugador={datosJugador}
-          esRutaRescate={esRutaRescate}
-          onSeleccionarCarta={seleccionarCarta}
-          onFinalizarConstruccion={handleFinalizar}
-          showNombreInput={true}
-        />
+      <div className="relative z-10 w-full flex flex-col justify-between flex-grow space-y-4">
+        <HeaderGamificacion puntosAcumulados={puntosAcumulados} progresoTotal={progresoTotal} />
+
+        <div className="flex-grow flex items-center justify-center py-1">
+          <EstacionCard 
+            dimensiones={dimensiones}
+            datosJugador={datosJugador}
+            esRutaRescate={esRutaRescate}
+            onSeleccionarCarta={seleccionarCarta}
+            onFinalizarConstruccion={handleFinalizar}
+            showNombreInput={true}
+          />
+        </div>
+
+        <MapaProgreso estaciones={estaciones} />
+
+        <footer className="text-center text-[10px] font-medium text-slate-500 w-full pt-1 drop-shadow-sm">
+          Ecosistema Digital de Vivienda Colsubsidio — Equipo 7x
+        </footer>
       </div>
 
-      <MapaProgreso estaciones={estaciones} />
-
-      <footer className="text-center text-[9px] text-slate-400 w-full pt-1">
-        Ecosistema Digital de Vivienda Colsubsidio — Equipo 7x
-      </footer>
+      {/* Modal Instrucciones inyectado al final para asegurar su posición sobre todo */}
+      <InstruccionesModal 
+        isOpen={showInstrucciones} 
+        onClose={() => setShowInstrucciones(false)} 
+      />
     </main>
   );
 }

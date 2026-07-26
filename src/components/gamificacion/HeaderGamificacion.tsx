@@ -1,74 +1,50 @@
 "use client";
 
-import { Chip, Progress } from "@nextui-org/react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 
 interface HeaderGamificacionProps {
   puntosAcumulados: number;
   progresoTotal: number;
 }
 
-export default function HeaderGamificacion({
-  puntosAcumulados,
-  progresoTotal,
-}: HeaderGamificacionProps) {
-  // Mensajes de calor humano según el avance del viaje
-  const obtenerFraseEmocional = () => {
-    if (progresoTotal === 0) return "¡Empecemos a trazar tu futuro!";
-    if (progresoTotal <= 40) return "¡Qué gran inicio! Cimientos seguros.";
-    if (progresoTotal <= 80) return "¡Vas increíble! Tu hogar toma forma.";
-    return "¡Estás a un paso de las llaves!";
-  };
-
+export default function HeaderGamificacion({ puntosAcumulados, progresoTotal }: HeaderGamificacionProps) {
   return (
-    <div className="space-y-3 w-full">
-      {/* Barra Superior con Identidad y Calor Humano */}
-      <header className="flex justify-between items-center bg-white p-4 rounded-2xl border border-slate-200/60 shadow-xs">
-        <div className="flex items-center gap-3">
-          <motion.div 
-            animate={{ scale: [1, 1.1, 1] }}
-            transition={{ repeat: Infinity, duration: 3 }}
-            className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0 shadow-xs"
-          >
-            🏡
-          </motion.div>
-          <div>
-            <h1 className="text-sm font-black text-[#575756] tracking-tight leading-none">
-              El Camino a Casa
-            </h1>
-            <p className="text-[10px] text-[#0067b1] font-extrabold uppercase tracking-wider mt-1">
-              Colsubsidio con tu familia
-            </p>
-          </div>
+    <header className="w-full max-w-sm mx-auto bg-white/70 backdrop-blur-md border border-white/40 rounded-2xl p-3.5 flex items-center justify-between shadow-xs relative z-30">
+      
+      {/* Marca / Identificación */}
+      <div className="flex flex-col">
+        <div className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-[#0067b1]" />
+          <span className="text-[11px] font-black text-slate-800 uppercase tracking-wider">
+            Mi Camino VIS
+          </span>
         </div>
-        <Chip className="bg-[#ffd000] text-slate-900 font-black text-xs border border-amber-300 shadow-2xs">
-          ★ {puntosAcumulados} Pts
-        </Chip>
-      </header>
-
-      {/* Barra de Progreso Emocional Dinámica */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/60 shadow-2xs space-y-2">
-        <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-wider">
-          <AnimatePresence mode="wait">
-            <motion.span 
-              key={obtenerFraseEmocional()}
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 4 }}
-              className="text-slate-600 font-extrabold lowercase first-letter:uppercase"
-            >
-              {obtenerFraseEmocional()}
-            </motion.span>
-          </AnimatePresence>
-          <span className="text-[#0067b1] font-mono">{Math.round(progresoTotal)}%</span>
-        </div>
-        <Progress 
-          value={progresoTotal} 
-          color="warning" 
-          className="h-2.5" 
-          radius="full" 
-        />
+        <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest pl-3.5">
+          Team 7x
+        </p>
       </div>
-    </div>
+
+      {/* Indicador de Puntuación Gamificada con Animación */}
+      <div className="flex items-center gap-2 bg-gradient-to-r from-amber-500/10 to-amber-500/5 border border-amber-200/50 px-3 py-1.5 rounded-xl shadow-3xs">
+        <motion.span 
+          key={puntosAcumulados}
+          initial={{ scale: 0.8, rotate: -10 }}
+          animate={{ scale: [1.3, 1], rotate: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 15 }}
+          className="text-xs"
+        >
+          ✨
+        </motion.span>
+        <div className="text-right">
+          <span className="block text-[9px] font-black text-amber-600 uppercase tracking-wider leading-none">
+            Puntos
+          </span>
+          <span className="text-xs font-black text-slate-800 leading-none">
+            {puntosAcumulados}
+          </span>
+        </div>
+      </div>
+
+    </header>
   );
 }

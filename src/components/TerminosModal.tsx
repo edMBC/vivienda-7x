@@ -1,85 +1,131 @@
 "use client";
 
+import { useState } from "react";
+import { 
+  Modal, 
+  ModalContent, 
+  ModalHeader, 
+  ModalBody, 
+  ModalFooter, 
+  Button,
+  Checkbox
+} from "@nextui-org/react";
+
 interface TerminosModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAccept: () => void;
+  onAceptar: () => void;
 }
 
-export default function TerminosModal({
-  isOpen,
-  onClose,
-  onAccept,
-}: TerminosModalProps) {
-  if (!isOpen) return null;
+export default function TerminosModal({ isOpen, onClose, onAceptar }: TerminosModalProps) {
+  const [aceptadoCheck, setAceptadoCheck] = useState(false);
 
   return (
-    <div className="fixed inset-0 w-screen h-screen flex items-center justify-center p-4 z-[99999]">
-      {/* Fondo oscuro difuminado */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-md transition-opacity"
-        onClick={onClose}
-      />
+    <Modal 
+      isOpen={isOpen} 
+      onClose={onClose}
+      scrollBehavior="inside"
+      size="md"
+      backdrop="blur"
+      placement="bottom"
+      // AQUÍ ESTABA EL ERROR: Faltaba bg-white para evitar la transparencia
+      className="bg-white rounded-t-3xl sm:rounded-2xl mx-0 sm:mx-auto shadow-2xl" 
+    >
+      <ModalContent>
+        {(actualClose) => (
+          <>
+            {/* CABEZOTE */}
+            <ModalHeader className="flex flex-col gap-1 pt-4 px-6 pb-3 border-b border-slate-200 bg-slate-50 flex-shrink-0">
+              <div className="w-10 h-1.5 bg-slate-300 rounded-full mx-auto mb-3 sm:hidden" />
+              <div className="flex items-center gap-2">
+                <span className="w-1.5 h-4 bg-[#0067b1] rounded-xs inline-block"></span>
+                <h2 className="text-base font-bold text-slate-900 tracking-tight leading-tight">
+                  Términos y Protección de Datos
+                </h2>
+              </div>
+              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest pl-3.5">
+                Plataforma de Vivienda — Colsubsidio
+              </p>
+            </ModalHeader>
 
-      {/* Caja de la Ventana Emergente */}
-      <div className="relative bg-white w-full max-w-[600px] max-h-[85vh] rounded-3xl shadow-2xl border-t-8 border-[#0067b1] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-[100000]">
-        
-        {/* Cabecera */}
-        <div className="p-6 border-b border-slate-100 flex-shrink-0">
-          <h3 className="text-xl font-extrabold text-[#0067b1]">
-            Términos, Condiciones y Habeas Data
-          </h3>
-        </div>
+            {/* CUERPO (Ahora con fondo sólido gracias al contenedor padre) */}
+            <ModalBody className="py-5 px-6 text-slate-700 text-xs space-y-4 font-normal leading-relaxed overflow-y-auto">
+              <p className="text-slate-600 font-medium">
+                Con el fin de procesar su perfilamiento, estimar los subsidios de vivienda de interés social (VIS) según la normativa vigente y gestionar su experiencia de usuario, los datos suministrados se regirán bajo las siguientes condiciones legales:
+              </p>
 
-        {/* Cuerpo con Scroll Interno */}
-        <div className="p-6 overflow-y-auto space-y-4 text-sm text-[#575756] leading-relaxed">
-          <p className="font-bold text-gray-800 text-base">
-            Autorización para el Tratamiento de Datos Personales
-          </p>
-          <p>
-            Al continuar, autorizas expresamente a la Caja de Compensación Familiar
-            Colsubsidio y a sus aliados estratégicos inmobiliarios para recolectar,
-            almacenar y procesar tus datos personales conforme a la Ley 1581 de 2012
-            (Habeas Data).
-          </p>
-          
-          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-xs space-y-2 shadow-inner">
-            <span className="font-bold text-[#0067b1] block">Finalidades del tratamiento:</span>
-            <ul className="list-disc pl-5 space-y-1.5 text-gray-600">
-              <li>Validación de estado de afectación y categoría de aportes.</li>
-              <li>Simulación de capacidad crediticia y estructuración del Plan de Ahorro y Crédito (PAC).</li>
-              <li>Cruce de verosimilitud para asignación prioritaria de vivienda VIS.</li>
-              <li>Contacto directo por parte de asesores comerciales especializados.</li>
-            </ul>
-          </div>
-          
-          <p className="text-xs text-slate-400 font-medium">
-            Tus datos no serán cedidos a terceros no vinculados con la gestión de tu subsidio y proyecto de vivienda.
-          </p>
-        </div>
+              <div className="space-y-1.5">
+                <h3 className="font-bold text-slate-900 text-[12px] uppercase tracking-wide border-b border-slate-100 pb-1">
+                  Cláusula Primera: Autorización (Ley 1581)
+                </h3>
+                <p className="text-slate-600 text-[11.5px] pl-1 text-justify">
+                  El usuario otorga su autorización expresa, previa e informada a Colsubsidio para la recolección, almacenamiento, uso y cruce analítico de sus datos básicos, información de ingresos mensuales y conformación del núcleo familiar, con el único propósito de evaluar viabilidades habitacionales comerciales.
+                </p>
+              </div>
 
-        {/* Botones de Acción */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row justify-end gap-3 flex-shrink-0">
-          <button
-            type="button"
-            className="w-full sm:w-auto px-5 py-2.5 rounded-xl font-bold text-sm text-red-500 hover:bg-red-50 transition-colors focus:outline-none"
-            onClick={onClose}
-          >
-            Cancelar
-          </button>
-          <button
-            type="button"
-            className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0067b1] hover:bg-[#00528f] text-white font-bold text-sm shadow-md transition-all active:scale-95 focus:outline-none"
-            onClick={() => {
-              onAccept();
-              onClose();
-            }}
-          >
-            Aceptar y Continuar
-          </button>
-        </div>
+              <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <h3 className="font-bold text-slate-950 text-[12px] uppercase tracking-wide pb-1">
+                  Cláusula Segunda: Exención Financiera
+                </h3>
+                <p className="text-slate-800 text-[11.5px] pl-1 text-justify font-medium">
+                  El presente sistema opera exclusivamente como un motor estadístico de simulación y perfilamiento prioritario. <strong>Bajo ninguna circunstancia este ejercicio constituye una aprobación formal o estudio analítico de crédito hipotecario.</strong>
+                </p>
+              </div>
 
-      </div>
-    </div>
+              <div className="space-y-1.5">
+                <h3 className="font-bold text-slate-900 text-[12px] uppercase tracking-wide border-b border-slate-100 pb-1">
+                  Cláusula Tercera: Finalidad del Perfilamiento
+                </h3>
+                <p className="text-slate-600 text-[11.5px] pl-1 text-justify">
+                  La información recolectada se procesará con el objetivo de optimizar los tiempos de respuesta y atención. Los datos estructurados determinarán la prioridad de asignación y contacto dentro de los flujos de asesoría.
+                </p>
+              </div>
+
+              {/* CHECKBOX */}
+              <div className="pt-2 pb-2 pl-1">
+                <Checkbox 
+                  isSelected={aceptadoCheck} 
+                  onValueChange={setAceptadoCheck}
+                  radius="sm"
+                  size="sm"
+                  classNames={{
+                    base: "items-start",
+                    wrapper: "mt-0.5",
+                    label: "text-[11.5px] font-bold text-slate-600 leading-tight select-none whitespace-normal text-justify"
+                  }}
+                >
+                  Manifiesto que he leído y acepto los términos y el tratamiento de mis datos personales de acuerdo con las cláusulas anteriores.
+                </Checkbox>
+              </div>
+            </ModalBody>
+
+            {/* ACCIONES DEL BOTÓN */}
+            <ModalFooter className="border-t border-slate-200 p-4 flex gap-2 bg-slate-50 flex-shrink-0 pb-6 sm:pb-4">
+              <Button 
+                variant="light" 
+                className="font-bold text-slate-500 text-xs rounded-xl h-12 px-4"
+                onClick={actualClose}
+              >
+                Cancelar
+              </Button>
+              <Button 
+                isDisabled={!aceptadoCheck}
+                className={`flex-grow font-bold rounded-xl text-xs uppercase tracking-wider h-12 transition-all ${
+                  aceptadoCheck 
+                    ? "bg-[#0067b1] text-white hover:bg-[#00528f] active:scale-95 shadow-md" 
+                    : "bg-slate-200 text-slate-400 cursor-not-allowed"
+                }`}
+                onClick={() => {
+                  onAceptar();
+                  actualClose();
+                }}
+              >
+                Confirmar
+              </Button>
+            </ModalFooter>
+          </>
+        )}
+      </ModalContent>
+    </Modal>
   );
 }

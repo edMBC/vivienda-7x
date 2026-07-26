@@ -69,7 +69,7 @@ export default function LoginCommercial() {
       />
       <div className="absolute inset-0 z-0 bg-gradient-to-b from-slate-950/90 via-slate-900/80 to-slate-950/95 lg:bg-gradient-to-r lg:from-slate-950/95 lg:via-slate-900/85 lg:to-transparent pointer-events-none" />
 
-      {/* Panel Izquierdo: Inspiración + Escalera de Reto y Recompensa */}
+      {/* Panel Izquierdo: Inspiración + Dinámica de Recompensas */}
       <div className="w-full lg:w-5/12 flex flex-col justify-between p-6 sm:p-8 lg:p-12 text-white relative z-10 min-h-[40vh] lg:min-h-screen">
         
         <div className="space-y-4 lg:space-y-6">
@@ -93,51 +93,52 @@ export default function LoginCommercial() {
             </h1>
             
             <p className="text-blue-100 text-xs sm:text-base leading-relaxed font-medium max-w-md opacity-90">
-              Transforma la vida de familias y solteros. Guiar su traslado a nuestra Caja a clientes listos para firma.
+              Transforma la vida de familias y solteros. Acompaña su vinculación a nuestra Caja y desbloquea clientes listos para firma.
             </p>
           </div>
         </div>
 
-        {/* ESCALERA VISUAL DE RETO Y RECOMPENSA */}
-        <div className="relative mt-6 lg:mt-0 bg-white/10 backdrop-blur-md border border-white/20 p-4 sm:p-5 rounded-2xl space-y-3">
-          <div className="flex justify-between items-center text-xs sm:text-sm font-bold text-blue-50">
-            <span className="tracking-wide uppercase text-[10px] sm:text-xs">Escalera de Movilidad</span>
-            <span className="text-[#ffd000] font-black bg-white/10 px-2 py-0.5 rounded-md text-[10px]">+150 Pts VIP</span>
+        {/* PRESENTACIÓN FLUIDA Y MODERNA (SIN CAJA RÍGIDA NI NÚMEROS DE ESCALERA) */}
+        <div className="mt-8 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-black uppercase tracking-widest text-slate-300">
+             
+            </span>
+          
           </div>
 
-          {/* Gráfica de Escalones */}
-          <div className="flex flex-col gap-2 py-1">
+          {/* Tarjetas traslúcidas en Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             
-            {/* Escalón 1 */}
-            <div className="flex items-center gap-3 bg-black/20 p-2 rounded-xl border border-white/10">
-              <div className="w-6 h-6 rounded-lg bg-blue-500 font-black text-xs text-white flex items-center justify-center flex-shrink-0">
-                1
+            {/* Tarjeta 1: Trabajo con Amarillos */}
+            <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-400/30 backdrop-blur-md flex flex-col justify-between space-y-2 hover:border-amber-400/60 transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#ffd000] bg-amber-500/20 px-2 py-0.5 rounded-md border border-amber-400/30">
+                  Gestión Comercial
+                </span>
+                <span className="text-sm">🟡</span>
               </div>
-              <div className="text-xs">
-                <p className="font-extrabold text-slate-100">Paso 1: Acompaña la Movilidad</p>
-                <p className="text-[10px] text-blue-200">Guía al prospecto a afiliarse a Colsubsidio.</p>
-              </div>
-            </div>
-
-            {/* Escalón 2 */}
-            <div className="flex items-center gap-3 bg-amber-500/20 p-2 rounded-xl border border-amber-400/40 translate-x-2">
-              <div className="w-6 h-6 rounded-lg bg-[#ffd000] font-black text-xs text-slate-900 flex items-center justify-center flex-shrink-0 animate-pulse">
-                2
-              </div>
-              <div className="text-xs">
-                <p className="font-extrabold text-[#ffd000]">Paso 2: Suma Puntos de Racha</p>
-                <p className="text-[10px] text-amber-100">Acumulas +50 pts por cada gestión efectiva.</p>
+              <div>
+                <h4 className="text-xs font-extrabold text-amber-200">Impulsa Leads Amarillos</h4>
+                <p className="text-[10.5px] text-amber-100/80 leading-snug mt-0.5 font-medium">
+                  Acompaña prospectos en su plan de ahorro o afiliación a Colsubsidio.
+                </p>
               </div>
             </div>
 
-            {/* Escalón 3 */}
-            <div className="flex items-center gap-3 bg-emerald-500/20 p-2 rounded-xl border border-emerald-400/40 translate-x-4">
-              <div className="w-6 h-6 rounded-lg bg-emerald-500 font-black text-xs text-white flex items-center justify-center flex-shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.5)]">
-                3
+            {/* Tarjeta 2: Recompensa Verde */}
+            <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-400/30 backdrop-blur-md flex flex-col justify-between space-y-2 hover:border-emerald-400/60 transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300 bg-emerald-500/20 px-2 py-0.5 rounded-md border border-emerald-400/30">
+                  Recompensa VIP
+                </span>
+                <span className="text-sm">🟢</span>
               </div>
-              <div className="text-xs">
-                <p className="font-extrabold text-emerald-400">Paso 3: ¡Desbloquea Cierre Verde!</p>
-                <p className="text-[10px] text-emerald-100">El algoritmo te inyecta un lead prioritario listo para firma.</p>
+              <div>
+                <h4 className="text-xs font-extrabold text-emerald-300">Desbloquea Leads Verdes</h4>
+                <p className="text-[10.5px] text-emerald-100/80 leading-snug mt-0.5 font-medium">
+                  El algoritmo te premia asignándote directamente prospectos listos para firma.
+                </p>
               </div>
             </div>
 
@@ -165,7 +166,7 @@ export default function LoginCommercial() {
             <CardBody className="p-4 sm:p-6">
               <form onSubmit={handleLogin} className="space-y-4">
                 
-                {/* Inputs Nativos sin Colisión de Textos */}
+                {/* Inputs Nativos */}
                 <div className="space-y-3.5">
                   <div className="flex flex-col gap-1">
                     <label htmlFor="email" className="text-xs font-bold text-slate-500 uppercase tracking-wider pl-1">
