@@ -50,7 +50,7 @@ export function mapLeadToFeatures(lead: {
     Segmento_Familia: segmentoFamilia,
     Piramide_Empresas: piramideEmpresas,
     Proyecto: lead.proyectoInteres || "Bosques de Arrayan",
-    Valor_Vivienda: 20000,
+    Valor_Vivienda: 200_000_000,
     Entidad_Financiera: isAfiliado ? "Colsubsidio" : "Banco",
   };
 }

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Card, CardBody, CardHeader, Button, Progress, Chip, Image, Divider, Spinner } from "@nextui-org/react";
+import { Card, CardBody, CardHeader, Button, Progress, Image, Divider, Spinner } from "@nextui-org/react";
 import { useLead } from "@/context/LeadContext";
 import { getProyectos, scoreLead, mapLeadToFeatures, Proyecto as ApiProyecto, ScoreResponse } from "@/lib/scoring";
 import { saveLead } from "@/lib/supabase";
@@ -22,6 +22,7 @@ export interface Proyecto {
 
 interface ProyectoConScore extends Proyecto {
   scoreResult: ScoreResponse | null;
+  vlrM: number;
   loading: boolean;
 }
 
@@ -62,7 +63,7 @@ function formatPrice(vlr: number): string {
 
 function getScoreColor(score: number): "success" | "warning" | "danger" {
   if (score >= 0.70) return "success";
-  if (score >= 0.40) return "warning";
+  if (score >= 0.55) return "warning";
   return "danger";
 }
 
@@ -89,34 +90,17 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
   const [proyectos, setProyectos] = useState<ProyectoConScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<ProyectoConScore | null>(null);
+  const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
         const apiProyectos = await getProyectos();
 
-        const mapped: ProyectoConScore[] = apiProyectos.map((p) => ({
-          id: p.id,
-          nombre: p.nombre,
-          zona: ZONA_MAP[p.ubicacion] || p.ubicacion,
-          imagen: IMAGENES[p.nombre] || IMAGENES["Bosques de Arrayan"],
-          precio: formatPrice(p.vlr_m),
-          scoreRequerido: 70,
-          viabilidadActual: 0,
-          estado: "Cargando...",
-          descripcion: `Un entorno ideal para tu familia en ${p.nombre}.`,
-          faltante: "Analizando tu perfil...",
-          scoreResult: null,
-          loading: true,
-        }));
-
-        setProyectos(mapped);
-        setProyectoSeleccionado(mapped[0]);
-
         const features = mapLeadToFeatures({
           isAfiliado: lead.isAfiliado === true,
           rangoEdad: lead.rangoEdad || "36-45",
-          personasCargo: parseInt(lead.personasCargo) || 1,
+          personasCargo: lead.personasCargo !== undefined && lead.personasCargo !== "" ? parseInt(lead.personasCargo) : 1,
           proyectoInteres: lead.proyectoInteres || "",
           segmentoFamilia: lead.segmentoFamilia,
           piramideEmpresas: lead.piramideEmpresas,
@@ -125,60 +109,33 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
 
         const scored = await Promise.all(
           apiProyectos.map(async (p) => {
-            const leadFeatures = { ...features, Proyecto: p.nombre, Valor_Vivienda: p.vlr_m / 10_000 };
+            const leadFeatures = { ...features, Proyecto: p.nombre, Valor_Vivienda: p.vlr_m };
             const result = await scoreLead(leadFeatures);
-            return { nombre: p.nombre, result };
+            return { nombre: p.nombre, result, vlr_m: p.vlr_m };
           })
         );
 
-        setProyectos((prev) =>
-          prev.map((proj) => {
-            const s = scored.find((sc) => sc.nombre === proj.nombre);
-            if (!s) return proj;
-            return {
-              ...proj,
-              scoreResult: s.result,
-              viabilidadActual: Math.round(s.result.score * 100),
-              estado: getEstadoText(s.result.score),
-              faltante: getFaltanteText(s.result.score),
-              loading: false,
-            };
-          })
-        );
+        scored.sort((a, b) => b.result.score - a.result.score);
+        const top5 = scored.slice(0, 7);
 
-        setProyectoSeleccionado((prev) => {
-          if (!prev) return null;
-          const s = scored.find((sc) => sc.nombre === prev.nombre);
-          if (!s) return prev;
-          return {
-            ...prev,
-            scoreResult: s.result,
-            viabilidadActual: Math.round(s.result.score * 100),
-            estado: getEstadoText(s.result.score),
-            faltante: getFaltanteText(s.result.score),
-            loading: false,
-          };
-        });
+        const mapped: ProyectoConScore[] = top5.map((p, idx) => ({
+          id: idx + 1,
+          nombre: p.nombre,
+          zona: ZONA_MAP[apiProyectos.find(ap => ap.nombre === p.nombre)?.ubicacion || ""] || "Bogota",
+          imagen: IMAGENES[p.nombre] || IMAGENES["Bosques de Arrayan"],
+          precio: formatPrice(p.vlr_m),
+          scoreRequerido: 70,
+          viabilidadActual: Math.round(p.result.score * 100),
+          estado: getEstadoText(p.result.score),
+          descripcion: `Un entorno ideal para tu familia en ${p.nombre}.`,
+          faltante: getFaltanteText(p.result.score),
+          scoreResult: p.result,
+          vlrM: p.vlr_m,
+          loading: false,
+        }));
 
-        const bestScore = scored.reduce((best, s) => s.result.score > best ? s.result.score : best, 0);
-        const bestSemaforo = bestScore >= 0.70 ? "VERDE" : bestScore >= 0.40 ? "AMARILLO" : "ROJO";
-        const bestProyecto = scored.find(s => s.result.score === bestScore)?.nombre || "";
-
-        await saveLead({
-          documento: lead.leadId,
-          nombre: lead.nombre || "Sin nombre",
-          afiliacion: lead.isAfiliado ? "Afiliado" : "No_Afiliado",
-          rango_edad: lead.rangoEdad || "36-45",
-          personas_a_cargo: parseInt(lead.personasCargo) || 0,
-          segmento_caja: lead.segmentoCaja || "Basico",
-          segmento_familia: lead.segmentoFamilia || "Sin Grupo",
-          piramide_empresas: lead.piramideEmpresas || "XI",
-          proyecto: bestProyecto,
-          valor_vivienda: features.Valor_Vivienda,
-          entidad_financiera: lead.isAfiliado ? "Colsubsidio" : "Banco",
-          score: bestScore,
-          semaforo: bestSemaforo,
-        });
+        setProyectos(mapped);
+        setProyectoSeleccionado(mapped[0]);
       } catch (err) {
         console.error("Error loading projects:", err);
       } finally {
@@ -187,6 +144,37 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
     }
     load();
   }, [lead]);
+
+  const handleSeleccionar = async () => {
+    if (!proyectoSeleccionado || guardando) return;
+    setGuardando(true);
+    try {
+      const score = proyectoSeleccionado.scoreResult?.score || 0;
+      const semaforo = score >= 0.70 ? "VERDE" : score >= 0.55 ? "AMARILLO" : "ROJO";
+
+      await saveLead({
+        documento: lead.leadId,
+        nombre: lead.nombre || "Sin nombre",
+        afiliacion: lead.isAfiliado ? "Afiliado" : "No_Afiliado",
+        rango_edad: lead.rangoEdad || "36-45",
+        personas_a_cargo: lead.personasCargo !== undefined && lead.personasCargo !== "" ? parseInt(lead.personasCargo) : 0,
+        segmento_caja: lead.segmentoCaja || "Basico",
+        segmento_familia: lead.segmentoFamilia || "Sin Grupo",
+        piramide_empresas: lead.piramideEmpresas || "XI",
+        proyecto: proyectoSeleccionado.nombre,
+        valor_vivienda: proyectoSeleccionado.vlrM,
+        entidad_financiera: lead.isAfiliado ? "Colsubsidio" : "Banco",
+        score,
+        semaforo,
+      });
+
+      onSeleccionarLlave(proyectoSeleccionado);
+    } catch (err) {
+      console.error("Error saving lead:", err);
+    } finally {
+      setGuardando(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -233,18 +221,17 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
               />
               <CardBody className="p-5 bg-white space-y-2">
                 <div className="flex justify-between items-center">
-                  <Chip size="sm" variant="flat" className="bg-blue-50 text-[#0067b1] font-bold uppercase text-[10px] tracking-widest px-2.5">
+                  <span className="text-[10px] font-black text-[#0067b1] bg-blue-50 px-2.5 py-1 rounded-lg uppercase tracking-widest border border-blue-100">
                     {proyecto.zona}
-                  </Chip>
+                  </span>
                   {proyecto.scoreResult && (
-                    <Chip
-                      size="sm"
-                      color={getScoreColor(proyecto.scoreResult.score)}
-                      variant="flat"
-                      className="font-bold text-xs"
-                    >
+                    <span className={`text-[11px] font-black text-white px-3 py-1 rounded-lg shadow-md ${
+                      proyecto.scoreResult.score >= 0.70 ? "bg-emerald-500" :
+                      proyecto.scoreResult.score >= 0.55 ? "bg-amber-400 text-slate-900" :
+                      "bg-red-500"
+                    }`}>
                       {proyecto.scoreResult.semaforo}
-                    </Chip>
+                    </span>
                   )}
                 </div>
                 <h3 className="font-extrabold text-[#575756] text-xl tracking-tight">{proyecto.nombre}</h3>
@@ -264,13 +251,13 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
         <div className="lg:sticky lg:top-6">
           <Card className="shadow-2xl border-t-8 border-[#ffd000] overflow-visible rounded-3xl bg-white/95 backdrop-blur-sm">
             <CardHeader className="bg-slate-50 border-b border-slate-100 flex flex-col items-start p-8 md:p-10 rounded-t-2xl">
-              <Chip
-                color={proyectoSeleccionado?.scoreResult ? getScoreColor(proyectoSeleccionado.scoreResult.score) : "default"}
-                variant="solid"
-                className="mb-4 font-bold text-white shadow-sm px-3 py-1"
-              >
+              <span className={`inline-block mb-4 font-black text-white shadow-md px-4 py-1.5 text-sm rounded-lg ${
+                (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.70 ? "bg-emerald-500" :
+                (proyectoSeleccionado?.scoreResult?.score || 0) >= 0.55 ? "bg-amber-400 text-slate-900" :
+                "bg-red-500"
+              }`}>
                 {proyectoSeleccionado?.estado}
-              </Chip>
+              </span>
               <h2 className="text-3xl md:text-4xl font-black text-[#575756] tracking-tighter">
                 {proyectoSeleccionado?.nombre}
               </h2>
@@ -294,19 +281,19 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
                     value={proyectoSeleccionado?.viabilidadActual || 0}
                     color={
                       (proyectoSeleccionado?.viabilidadActual || 0) >= 70 ? "success" :
-                      (proyectoSeleccionado?.viabilidadActual || 0) >= 40 ? "warning" : "danger"
+                      (proyectoSeleccionado?.viabilidadActual || 0) >= 55 ? "warning" : "danger"
                     }
                     className="h-5"
                     radius="full"
                   />
-                  <div className="flex justify-between text-xs text-slate-400 mt-3 font-bold px-1 relative">
+                  <div className="flex justify-between text-xs text-slate-500 mt-3 font-bold px-1 relative">
                     <span>Inicio</span>
                     <span>Ahorro</span>
                     <span>PAC</span>
                     <motion.span
                       animate={{ y: [0, -3, 0] }}
                       transition={{ repeat: Infinity, duration: 2 }}
-                      className="text-emerald-600 font-extrabold"
+                      className="text-emerald-700 font-extrabold"
                     >
                       Tu hogar!
                     </motion.span>
@@ -320,19 +307,21 @@ export default function FaseResultados({ onSeleccionarLlave }: FaseResultadosPro
                 <h4 className="text-sm md:text-base font-extrabold text-[#0067b1] flex items-center gap-2.5 mb-3">
                   <span>Que sigue para lograrlo?</span>
                 </h4>
-                <p className="text-sm md:text-base text-slate-700 leading-relaxed font-medium">
+                <p className="text-sm md:text-base text-slate-700 leading-relaxed font-semibold">
                   {proyectoSeleccionado?.faltante}
                 </p>
               </div>
 
               <Button
                 size="lg"
+                isLoading={guardando}
                 className={`w-full font-extrabold shadow-xl text-white h-16 text-lg md:text-xl rounded-2xl transition-transform active:scale-95 transition-all duration-300 ${
                   (proyectoSeleccionado?.viabilidadActual || 0) >= 70
                     ? "bg-gradient-to-r from-emerald-500 to-emerald-400 hover:from-emerald-600 hover:to-emerald-500"
                     : "bg-gradient-to-r from-[#0067b1] to-blue-500 hover:from-[#00528f] hover:to-blue-600"
                 }`}
-                onClick={() => proyectoSeleccionado && onSeleccionarLlave(proyectoSeleccionado)}
+                onClick={handleSeleccionar}
+                disabled={guardando}
               >
                 {(proyectoSeleccionado?.viabilidadActual || 0) >= 70
                   ? "Quiero las llaves de mi hogar!"

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardBody, Button, Chip, Input } from "@nextui-org/react";
+import { Card, CardBody, Button, Chip } from "@nextui-org/react";
 import { motion, AnimatePresence } from "framer-motion";
 import { DimensionJuego } from "@/types/gamificacion";
 
@@ -143,22 +143,19 @@ export default function EstacionCard({
                 </Button>
               ) : esNombreStep ? (
                 <div className="w-full space-y-3">
-                  <Input
-                    size="lg"
-                    type="text"
-                    label="Tu nombre completo"
-                    placeholder="Ej: Carlos Andrés Martínez"
-                    value={nombreInput}
-                    onChange={(e) => setNombreInput(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleNombreSubmit()}
-                    variant="bordered"
-                    color="primary"
-                    classNames={{
-                      input: "text-center text-lg font-bold text-[#575756]",
-                      label: "text-center w-full text-slate-500 font-medium",
-                      inputWrapper: "h-14 rounded-2xl border-slate-200 hover:border-[#0067b1] focus-within:border-[#0067b1]",
-                    }}
-                  />
+                  <div className="space-y-2">
+                    <label className="block text-center text-sm font-bold text-slate-500">
+                      Tu nombre completo
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej: Carlos Andrés Martínez"
+                      value={nombreInput}
+                      onChange={(e) => setNombreInput(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleNombreSubmit()}
+                      className="w-full h-14 text-center text-lg font-bold text-[#575756] placeholder:font-normal placeholder:text-slate-300 rounded-2xl border-2 border-slate-200 hover:border-[#0067b1] focus:border-[#0067b1] outline-none transition-all"
+                    />
+                  </div>
                   <Button
                     size="lg"
                     className="w-full font-black text-white bg-[#0067b1] hover:bg-[#00528f] h-14 rounded-2xl text-xs uppercase tracking-wider shadow-md"

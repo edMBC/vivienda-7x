@@ -158,13 +158,32 @@ export default function FlujoNoAfiliados() {
   const puntosAcumulados = estaciones.filter((e) => e.completada).length * 50;
 
   const handleFinalizar = () => {
+    const rangoEdadMap: Record<string, string> = {
+      "20 a 35": "20-35",
+      "36 a 45": "36-45",
+      "46 o más": "46-55",
+    };
+    const rangoEdad = rangoEdadMap[datosJugador.rangoEdad] || datosJugador.rangoEdad;
+
+    const personasMap: Record<string, number> = {
+      "0": 0,
+      "1 a 2": 1,
+      "3 o más": 3,
+    };
+    const personasCargo = personasMap[datosJugador.personasCargo] || 0;
+
+    const isJoven = rangoEdad === "20-35" && personasCargo <= 1;
+    const isMedio = rangoEdad === "36-45";
+    const segmentoCaja = isJoven ? "Joven" : isMedio ? "Medio" : "Basico";
+
     updateLead({
       nombre: datosJugador.nombre,
       isAfiliado: false,
-      rangoEdad: datosJugador.rangoEdad,
-      personasCargo: datosJugador.personasCargo,
+      rangoEdad,
+      personasCargo: String(personasCargo),
       segmentoFamilia: datosJugador.segmentoFamilia,
       piramideEmpresas: datosJugador.piramideEmpresas,
+      segmentoCaja,
     });
     router.push("/afiliado/simulador");
   };

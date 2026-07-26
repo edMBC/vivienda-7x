@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Card, Input, Button } from "@nextui-org/react";
-import { findLeadByDocumento } from "@/lib/supabase";
+import { Card, Button } from "@nextui-org/react";
+import { findAfiliadoByDocumento } from "@/lib/supabase";
 import { useLead } from "@/context/LeadContext";
 
 interface FaseIngresoProps {
@@ -27,18 +27,17 @@ export default function FaseIngreso({ onSiguiente, onNoEncontrado }: FaseIngreso
     setNoEncontrado(false);
 
     try {
-      const leadRecord = await findLeadByDocumento(doc);
+      const afiliado = await findAfiliadoByDocumento(doc);
 
-      if (leadRecord) {
+      if (afiliado) {
         updateLead({
-          nombre: leadRecord.nombre,
-          isAfiliado: leadRecord.afiliacion === "Afiliado",
-          rangoEdad: leadRecord.rango_edad,
-          personasCargo: String(leadRecord.personas_a_cargo),
-          segmentoCaja: leadRecord.segmento_caja,
-          segmentoFamilia: leadRecord.segmento_familia,
-          piramideEmpresas: leadRecord.piramide_empresas,
-          proyectoInteres: leadRecord.proyecto,
+          nombre: afiliado.nombre,
+          isAfiliado: true,
+          rangoEdad: afiliado.rango_edad,
+          personasCargo: String(afiliado.personas_a_cargo),
+          segmentoCaja: afiliado.segmento_caja,
+          segmentoFamilia: afiliado.segmento_familia,
+          piramideEmpresas: afiliado.piramide_empresas,
         });
         onSiguiente(doc);
       } else {
@@ -73,24 +72,36 @@ export default function FaseIngreso({ onSiguiente, onNoEncontrado }: FaseIngreso
 
             <motion.svg
               viewBox="0 0 100 100"
-              className="absolute inset-0 w-full h-full stroke-[#0067b1] z-10"
+              className="absolute inset-0 w-full h-full z-10"
               fill="none"
-              strokeWidth="2.5"
+              strokeWidth="3.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             >
+              {/* Casa */}
               <motion.path
                 initial={{ pathLength: 0 }}
                 animate={{ pathLength: 1 }}
-                transition={{ duration: 1.5, delay: 0.2, ease: "easeInOut" }}
-                d="M 20 50 L 50 50 M 50 50 A 10 10 0 1 0 50 30 A 10 10 0 1 0 50 50 M 20 50 L 20 60 M 28 50 L 28 57"
+                transition={{ duration: 2, delay: 0.2, ease: "easeInOut" }}
+                d="M 50 15 L 15 45 L 15 85 L 85 85 L 85 45 Z"
+                stroke="#0067b1"
               />
-              
+              {/* Puerta */}
               <motion.path
                 initial={{ pathLength: 0, opacity: 0 }}
                 animate={{ pathLength: 1, opacity: 1 }}
-                transition={{ duration: 2, delay: 1.5, ease: "easeInOut" }}
-                d="M 50 50 C 30 30, 10 60, 50 90 C 90 60, 70 30, 50 50 M 35 70 L 35 90 L 65 90 L 65 70"
+                transition={{ duration: 1.2, delay: 1.2, ease: "easeInOut" }}
+                d="M 40 85 L 40 62 L 60 62 L 60 85"
+                stroke="#ffd000"
+              />
+              {/* Ventana */}
+              <motion.rect
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 1 }}
+                transition={{ duration: 1, delay: 1.8, ease: "easeInOut" }}
+                x="68" y="52" width="10" height="10" rx="1"
+                stroke="#0067b1"
+                strokeWidth="2.5"
               />
             </motion.svg>
           </div>
@@ -106,23 +117,27 @@ export default function FaseIngreso({ onSiguiente, onNoEncontrado }: FaseIngreso
         </div>
 
         <div className="space-y-6">
-          <Input
-            size="lg"
-            type="text"
-            label="Tu número de documento"
-            placeholder="Ej: CC 123456789"
-            value={identificacion}
-            onChange={(e) => { setIdentificacion(e.target.value); setError(""); setNoEncontrado(false); }}
-            onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-            variant="bordered"
-            color={error ? "danger" : "primary"}
-            errorMessage={error}
-            classNames={{
-              input: "text-center text-2xl font-black tracking-widest text-[#575756] placeholder:font-normal placeholder:tracking-normal",
-              label: "text-center w-full text-slate-500 font-medium",
-              inputWrapper: `h-16 rounded-2xl border-slate-200 hover:border-[#0067b1] focus-within:border-[#0067b1] ${error ? "border-red-400" : ""}`,
-            }}
-          />
+          <div className="space-y-2">
+            <label className="block text-center text-sm font-bold text-slate-500">
+              Tu número de documento
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="123456789"
+              value={identificacion}
+              onChange={(e) => { setIdentificacion(e.target.value.replace(/[^0-9]/g, "")); setError(""); setNoEncontrado(false); }}
+              onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
+              className={`w-full h-16 text-center text-2xl font-black tracking-widest text-[#575756] placeholder:font-normal placeholder:tracking-normal placeholder:text-slate-300 rounded-2xl border-2 outline-none transition-all ${
+                error
+                  ? "border-red-400 focus:border-red-500"
+                  : "border-slate-200 hover:border-[#0067b1] focus:border-[#0067b1]"
+              }`}
+            />
+            {error && (
+              <p className="text-red-500 text-xs font-bold text-center mt-1">{error}</p>
+            )}
+          </div>
 
           {noEncontrado && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-3">

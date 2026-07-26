@@ -17,8 +17,7 @@ import {
   useDisclosure,
   Spinner
 } from "@nextui-org/react";
-import { scoreLead, mapLeadToFeatures, getProyectos, Proyecto } from "@/lib/scoring";
-import { getAllLeads, LeadRecord } from "@/lib/supabase";
+import { getAllLeads, updateLeadGestion, LeadRecord } from "@/lib/supabase";
 
 interface Lead {
   id: string;
@@ -29,6 +28,7 @@ interface Lead {
   score: number;
   status: "verde" | "amarillo" | "rojo";
   contactado: boolean;
+  ultima_accion: string | null;
   bloqueado: boolean;
   fuente: "afiliado" | "app";
 }
@@ -72,38 +72,22 @@ export default function AsesorDashboard() {
     async function loadLeads() {
       try {
         const dbLeads = await getAllLeads();
-        const proyectos = await getProyectos();
 
         if (dbLeads.length > 0) {
-          const scored = await Promise.all(
-            dbLeads.map(async (dbLead) => {
-              const features = mapLeadToFeatures({
-                isAfiliado: dbLead.afiliacion === "Afiliado",
-                rangoEdad: dbLead.rango_edad,
-                personasCargo: dbLead.personas_a_cargo,
-                proyectoInteres: dbLead.proyecto,
-                segmentoFamilia: dbLead.segmento_familia,
-                piramideEmpresas: dbLead.piramide_empresas,
-                segmentoCaja: dbLead.segmento_caja,
-              });
-              const proyecto = proyectos.find((p) => p.nombre === dbLead.proyecto);
-              if (proyecto) features.Valor_Vivienda = proyecto.vlr_m / 10_000;
-              const result = await scoreLead(features);
-              return {
-                id: dbLead.id,
-                nombre: dbLead.nombre,
-                documento: dbLead.documento,
-                proyecto: dbLead.proyecto,
-                afiliado: dbLead.afiliacion === "Afiliado",
-                score: Math.round(result.score * 100),
-                status: result.semaforo.toLowerCase() as "verde" | "amarillo" | "rojo",
-                contactado: false,
-                bloqueado: result.semaforo === "VERDE",
-                fuente: (dbLead.documento.startsWith("APP-") ? "app" : "afiliado") as "afiliado" | "app",
-              };
-            })
-          );
-          setLeads(scored);
+          const mapped = dbLeads.map((dbLead) => ({
+            id: dbLead.id,
+            nombre: dbLead.nombre,
+            documento: dbLead.documento,
+            proyecto: dbLead.proyecto,
+            afiliado: dbLead.afiliacion === "Afiliado",
+            score: Math.round((dbLead.score || 0) * 100),
+            status: (dbLead.semaforo || "ROJO").toLowerCase() as "verde" | "amarillo" | "rojo",
+            contactado: dbLead.contactado || false,
+            ultima_accion: dbLead.ultima_accion || null,
+            bloqueado: dbLead.semaforo === "VERDE",
+            fuente: (dbLead.afiliacion === "Afiliado" ? "afiliado" : "app") as "afiliado" | "app",
+          }));
+          setLeads(mapped);
         } else {
           setLeads([]);
         }
@@ -122,13 +106,22 @@ export default function AsesorDashboard() {
     onOpen();
   };
 
-  const handleRegistrarContacto = () => {
+  const handleRegistrarContacto = async () => {
     if (!leadActivo) return;
+
+    const accionMap: Record<string, string> = {
+      amarillo: "Madurar Ahorro",
+      rojo: "Incubar Prospecto",
+      verde: "Entregar Llaves",
+    };
+    const accion = accionMap[leadActivo.status] || "Contactado";
+
+    await updateLeadGestion(leadActivo.documento, true, accion);
 
     let seDesbloqueoLeads = false;
     const leadsActualizados = leads.map((item) => {
       if (item.id === leadActivo.id) {
-        return { ...item, contactado: true };
+        return { ...item, contactado: true, ultima_accion: accion };
       }
       return item;
     });
@@ -219,19 +212,19 @@ export default function AsesorDashboard() {
             <p className="text-[10px] sm:text-xs text-slate-400 font-bold uppercase tracking-wider mt-0.5">{saludo.sub}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           <Chip className="hidden sm:flex bg-amber-50 text-[#575756] font-black text-xs border border-amber-200/80">
             {puntosTotales} Pts VIP
           </Chip>
-          <Button 
-            size="sm" 
-            variant="light" 
-            color="danger" 
-            className="font-bold text-xs" 
+          <button 
+            className="flex items-center gap-2 bg-white border-2 border-red-200 hover:border-red-400 hover:bg-red-50 text-red-500 hover:text-red-600 font-black text-[11px] uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all duration-200 active:scale-95"
             onClick={() => router.push("/login")}
           >
-            Cerrar Sesión
-          </Button>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0110.5 3h6a2.25 2.25 0 012.25 2.25v13.5A2.25 2.25 0 0116.5 21h-6a2.25 2.25 0 01-2.25-2.25V15m-3 0l3-3m0 0l-3-3m3 3H3" />
+            </svg>
+            Salir
+          </button>
         </div>
       </header>
 
@@ -369,13 +362,13 @@ export default function AsesorDashboard() {
                   </div>
 
                   {lead.bloqueado ? (
-                    <Button size="sm" className="bg-slate-200 text-slate-400 font-black text-[10px] uppercase rounded-lg cursor-not-allowed">
+                    <Button size="sm" className="bg-slate-600 text-white font-black text-[10px] uppercase rounded-lg shadow-sm cursor-not-allowed">
                       Bloqueado
                     </Button>
                   ) : lead.contactado ? (
-                    <Chip size="sm" color="success" variant="flat" className="font-black text-[10px] uppercase border border-emerald-200">
-                      Gestionado ✓
-                    </Chip>
+                    <span className="inline-flex items-center gap-1 bg-emerald-600 text-white font-black text-[10px] uppercase px-3 py-1.5 rounded-lg shadow-md">
+                      {lead.ultima_accion || "Gestionado"} ✓
+                    </span>
                   ) : (
                     <Button
                       size="sm"

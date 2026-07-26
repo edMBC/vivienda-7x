@@ -1,17 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence } from "framer-motion";
 import FaseIngreso from "@/components/simulador/FaseIngreso";
 import FaseAnimacion from "@/components/simulador/FaseAnimacion";
 import FaseResultados, { Proyecto } from "@/components/simulador/FaseResultados";
 import FaseConfirmacion from "@/components/simulador/FaseConfirmacion";
+import { useLead } from "@/context/LeadContext";
 
 export default function SimuladorAfiliadoPage() {
   const router = useRouter();
+  const { lead } = useLead();
   const [fase, setFase] = useState<number>(0);
   const [proyectoSeleccionado, setProyectoSeleccionado] = useState<Proyecto | null>(null);
+
+  useEffect(() => {
+    if (lead.isAfiliado === false && lead.nombre) {
+      setFase(1);
+    }
+  }, [lead.isAfiliado, lead.nombre]);
 
   const handleSiguienteIngreso = (documento: string) => {
     setFase(1);

@@ -14,7 +14,7 @@ const ShieldIcon = () => (
 
 export default function Home() {
   const router = useRouter();
-  const { updateLead } = useLead();
+  const { updateLead, resetLead } = useLead();
   
   const [modalAbierto, setModalAbierto] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
@@ -37,6 +37,7 @@ export default function Home() {
     }
 
     setValidationError("");
+    resetLead();
     updateLead({
       isAfiliado,
       proyectoInteres: proyectoCercano.nombre,
@@ -74,9 +75,9 @@ export default function Home() {
         
         <Button
           size="sm"
-          variant="faded"
+          variant="solid"
           startContent={<ShieldIcon />}
-          className="bg-white/10 text-white border-white/20 hover:bg-white/20 backdrop-blur-md text-xs font-medium px-3"
+          className="bg-[#ffd000] text-[#575756] border-2 border-amber-400 hover:bg-amber-300 shadow-lg shadow-amber-500/30 text-xs font-black px-4 py-2 rounded-xl"
           onClick={() => router.push("/login")}
         >
           Portal Asesores
