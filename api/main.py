@@ -1,6 +1,6 @@
 """
 API de Scoring — Vivienda 7x
-Versión de diagnóstico y blindaje para Serverless (Vercel).
+Sirve el modelo de ML via FastAPI para el frontend Next.js.
 """
 import pickle
 import math
@@ -14,13 +14,13 @@ app = FastAPI(title="Vivienda 7x Scoring API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000", "https://vivienda-7x.vercel.app", "*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# === Carga segura del modelo con captura de errores ===
+# === Carga segura del modelo (Compatible con Local y Serverless) ===
 model_data = None
 
 def get_model_data():
@@ -31,17 +31,27 @@ def get_model_data():
             path = os.path.join(base, "data", "modelo_scoring.pkl")
             
             if not os.path.exists(path):
-                raise FileNotFoundError(f"El archivo modelo_scoring.pkl no existe en la ruta: {path}")
+                raise FileNotFoundError(f"No se encontró el modelo en: {path}")
                 
             with open(path, "rb") as f:
                 model_data = pickle.load(f)
+            print(f"Modelo cargado exitosamente: {model_data.get('nombre', 'Desconocido')}")
         except Exception as e:
             import traceback
-            detalle = traceback.format_exc()
-            raise HTTPException(status_code=500, detail=f"Fallo al cargar el modelo: {str(e)} | Trace: {detalle}")
+            print(f"ERROR AL CARGAR MODELO: {traceback.format_exc()}")
+            raise HTTPException(status_code=500, detail=f"Error cargando modelo: {str(e)}")
     return model_data
 
+# Carga inicial opcional para local
+@app.on_event("startup")
+def startup_event():
+    try:
+        get_model_data()
+    except Exception:
+        pass
 
+
+# === Proyectos del PDF (21) ===
 PROYECTOS = [
     {"id": 1, "nombre": "Bosques de Arrayan", "ubicacion": "Bogota", "vlr_min": 170_000_000, "vlr_max": 230_000_000, "vlr_m": 200_000_000},
     {"id": 2, "nombre": "Bosques de Turpial", "ubicacion": "Bogota", "vlr_min": 200_000_000, "vlr_max": 270_000_000, "vlr_m": 237_000_000},
@@ -67,28 +77,27 @@ PROYECTOS = [
 ]
 
 
+# === Endpoints ===
 @app.get("/api/proyectos")
 def get_proyectos():
     return PROYECTOS
 
 
 class ScoreRequest(BaseModel):
-    Afiliacion: str
-    Rango_Edad: str
-    Personas_a_Cargo: int
-    Segmento_Caja: str
-    Segmento_Familia: str
-    Piramide_Empresas: str
-    Proyecto: str
-    Valor_Vivienda: float
-    Entidad_Financiera: str
+    Afiliacion: str          # "Afiliado" | "No_Afiliado"
+    Rango_Edad: str          # "20-35" | "36-45" | "46-55" | "55+" | "<19"
+    Personas_a_Cargo: int    # 0-10
+    Segmento_Caja: str       # "Joven" | "Basico" | "Medio" | "Alto"
+    Segmento_Familia: str    # "Sin Grupo" | "Pareja Conyugal" | "Nuclear Integrada" | "Ampliada"
+    Piramide_Empresas: str   # "TAU" | "GAMMA" | "RHO" | "NU" | "ZETA" | "ALPHA" | "IOTA" | "ETA" | "XI"
+    Proyecto: str            # nombre del proyecto
+    Valor_Vivienda: float    # COP (ej: 200M COP = 200000000.0)
+    Entidad_Financiera: str  # "Banco" | "Colsubsidio" | "Contado"
 
 
 @app.post("/api/score")
 def score_lead(req: ScoreRequest):
     data = get_model_data()
-    modelo = data["modelo"]
-
     X = pd.DataFrame([{
         "Afiliacion": req.Afiliacion,
         "Rango_Edad": req.Rango_Edad,
@@ -101,11 +110,79 @@ def score_lead(req: ScoreRequest):
         "Entidad_Financiera": req.Entidad_Financiera,
     }])
 
+    modelo = data["modelo"]
     proba = modelo.predict_proba(X)[0]
+    
     p_compra = float(proba[0])
     
-    calibrated = 1 / (1 + math.exp(-8 * (p_compra - 0.85)))
+    raw = p_compra
+    calibrated = 1 / (1 + math.exp(-8 * (raw - 0.85)))
+    
     score = round(calibrated, 4)
 
-    semaforo = "VERDE" if score >= 0.70 else ("AMARILLO" if score >= 0.55 else "ROJO")
+    if score >= 0.70:
+        semaforo = "VERDE"
+    elif score >= 0.55:
+        semaforo = "AMARILLO"
+    else:
+        semaforo = "ROJO"
+
     return {"score": score, "semaforo": semaforo}
+
+
+class BatchScoreRequest(BaseModel):
+    leads: list[ScoreRequest]
+
+
+@app.post("/api/score/batch")
+def score_batch(req: BatchScoreRequest):
+    data = get_model_data()
+    rows = []
+    for lead in req.leads:
+        rows.append({
+            "Afiliacion": lead.Afiliacion,
+            "Rango_Edad": lead.Rango_Edad,
+            "Personas_a_Cargo": lead.Personas_a_Cargo,
+            "Segmento_Caja": lead.Segmento_Caja,
+            "Segmento_Familia": lead.Segmento_Familia,
+            "Piramide_Empresas": lead.Piramide_Empresas,
+            "Proyecto": lead.Proyecto,
+            "Valor_Vivienda": lead.Valor_Vivienda,
+            "Entidad_Financiera": lead.Entidad_Financiera,
+        })
+
+    X = pd.DataFrame(rows)
+    modelo = data["modelo"]
+    probas = modelo.predict_proba(X)[:, 0]
+
+    results = []
+    for prob in probas:
+        raw = float(prob)
+        calibrated = 1 / (1 + math.exp(-8 * (raw - 0.85)))
+        score = round(calibrated, 4)
+        if score >= 0.70:
+            sem = "VERDE"
+        elif score >= 0.55:
+            sem = "AMARILLO"
+        else:
+            sem = "ROJO"
+        results.append({"score": score, "semaforo": sem})
+
+    return {"results": results}
+
+
+@app.get("/api/health")
+def health():
+    try:
+        data = get_model_data()
+        m_name = data["nombre"]
+        m_features = data["features"]
+    except Exception:
+        m_name = None
+        m_features = None
+
+    return {
+        "status": "ok",
+        "model": m_name,
+        "features": m_features,
+    }
