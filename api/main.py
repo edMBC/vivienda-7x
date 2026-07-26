@@ -91,40 +91,35 @@ def score_lead(req: ScoreRequest):
     try:
         data = get_model_data()
         modelo = data["modelo"]
+
+        X = pd.DataFrame([{
+            "Afiliacion": req.Afiliacion,
+            "Rango_Edad": req.Rango_Edad,
+            "Personas_a_Cargo": req.Personas_a_Cargo,
+            "Segmento_Caja": req.Segmento_Caja,
+            "Segmento_Familia": req.Segmento_Familia,
+            "Piramide_Empresas": req.Piramide_Empresas,
+            "Proyecto": req.Proyecto,
+            "Valor_Vivienda": req.Valor_Vivienda,
+            "Entidad_Financiera": req.Entidad_Financiera,
+        }])
+
+        proba = modelo.predict_proba(X)[0]
+        p_compra = float(proba[0])
+        
+        calibrated = 1 / (1 + math.exp(-8 * (p_compra - 0.85)))
+        score = round(calibrated, 4)
+
+        semaforo = "VERDE" if score >= 0.70 else ("AMARILLO" if score >= 0.55 else "ROJO")
+
+        return {"score": score, "semaforo": semaforo}
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al cargar el modelo: {str(e)}")
-
-    X = pd.DataFrame([{
-        "Afiliacion": req.Afiliacion,
-        "Rango_Edad": req.Rango_Edad,
-        "Personas_a_Cargo": req.Personas_a_Cargo,
-        "Segmento_Caja": req.Segmento_Caja,
-        "Segmento_Familia": req.Segmento_Familia,
-        "Piramide_Empresas": req.Piramide_Empresas,
-        "Proyecto": req.Proyecto,
-        "Valor_Vivienda": req.Valor_Vivienda,
-        "Entidad_Financiera": req.Entidad_Financiera,
-    }])
-
-    proba = modelo.predict_proba(X)[0]
-    p_compra = float(proba[0])
-    
-    raw = p_compra
-    calibrated = 1 / (1 + math.exp(-8 * (raw - 0.85)))
-    score = round(calibrated, 4)
-
-    if score >= 0.70:
-        semaforo = "VERDE"
-    elif score >= 0.55:
-        semaforo = "AMARILLO"
-    else:
-        semaforo = "ROJO"
-
-    return {"score": score, "semaforo": semaforo}
-
-
-class BatchScoreRequest(BaseModel):
-    leads: list[ScoreRequest]
+        import traceback
+        error_detallado = traceback.format_exc()
+        print(f"ERROR CRITICO EN /api/score: {error_detallado}")
+        # Esto enviará el error exacto a tu navegador para verlo de inmediato
+        return {"error": str(e), "detalle": error_detallado}, 500
 
 
 @app.post("/api/score/batch")
