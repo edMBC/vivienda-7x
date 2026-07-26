@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { Card, CardBody, Button, Chip } from "@nextui-org/react";
-import { motion, AnimatePresence } from "framer-motion";
 import { DimensionJuego } from "@/types/gamificacion";
+import { motion, AnimatePresence, Variants } from "framer-motion";
 
 interface EstacionCardProps {
   dimensiones: DimensionJuego[];
@@ -104,7 +104,7 @@ export default function EstacionCard({
     exit: { opacity: 0, scale: 0.8, filter: "blur(4px)", transition: { duration: 0.3 } }
   };
 
-  const cardVariants = {
+  const cardVariants: Variants = {
     hidden: { opacity: 0, y: 50, scale: 0.5, rotate: -10 },
     show: { 
       opacity: 1, 
