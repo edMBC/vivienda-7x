@@ -1,11 +1,12 @@
 """
 API de Scoring — Vivienda 7x
-Sirve el modelo de ML via FastAPI para el frontend Next.js.
+Sirve el modelo de ML vía FastAPI (optimizado para Serverless / Vercel).
 """
 import pickle
 import math
+import os
 import pandas as pd
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -19,21 +20,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# === Cargar modelo al startup ===
+# === Carga del modelo segura para Serverless (Lazy Loading) ===
 model_data = None
 
-@app.on_event("startup")
-def load_model():
+def get_model_data():
     global model_data
-    import os
-    base = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(base, "data", "modelo_scoring.pkl")
-    with open(path, "rb") as f:
-        model_data = pickle.load(f)
-    print(f"Modelo cargado: {model_data['nombre']} (AUC={model_data['roc_auc']:.3f})")
+    if model_data is None:
+        try:
+            base = os.path.dirname(os.path.abspath(__file__))
+            path = os.path.join(base, "data", "modelo_scoring.pkl")
+            
+            if not os.path.exists(path):
+                raise FileNotFoundError(f"No se encontró el archivo del modelo en: {path}")
+                
+            with open(path, "rb") as f:
+                model_data = pickle.load(f)
+            print(f"Modelo cargado exitosamente: {model_data.get('nombre', 'Desconocido')}")
+        except Exception as e:
+            print(f"Error crítico cargando el modelo: {str(e)}")
+            raise e
+    return model_data
 
 
-# === Proyectos del PDF (22) ===
+# === Proyectos del PDF (21) ===
 PROYECTOS = [
     {"id": 1, "nombre": "Bosques de Arrayan", "ubicacion": "Bogota", "vlr_min": 170_000_000, "vlr_max": 230_000_000, "vlr_m": 200_000_000},
     {"id": 2, "nombre": "Bosques de Turpial", "ubicacion": "Bogota", "vlr_min": 200_000_000, "vlr_max": 270_000_000, "vlr_m": 237_000_000},
@@ -73,13 +82,18 @@ class ScoreRequest(BaseModel):
     Segmento_Familia: str    # "Sin Grupo" | "Pareja Conyugal" | "Nuclear Integrada" | "Ampliada"
     Piramide_Empresas: str   # "TAU" | "GAMMA" | "RHO" | "NU" | "ZETA" | "ALPHA" | "IOTA" | "ETA" | "XI"
     Proyecto: str            # nombre del proyecto
-    Valor_Vivienda: float    # COP (ej: 200M COP = 200000000.0)
+    Valor_Vivienda: float    # COP
     Entidad_Financiera: str  # "Banco" | "Colsubsidio" | "Contado"
 
 
 @app.post("/api/score")
 def score_lead(req: ScoreRequest):
-    print(f"SCORE REQUEST: {req.dict()}")
+    try:
+        data = get_model_data()
+        modelo = data["modelo"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al cargar el modelo: {str(e)}")
+
     X = pd.DataFrame([{
         "Afiliacion": req.Afiliacion,
         "Rango_Edad": req.Rango_Edad,
@@ -92,15 +106,11 @@ def score_lead(req: ScoreRequest):
         "Entidad_Financiera": req.Entidad_Financiera,
     }])
 
-    modelo = model_data["modelo"]
     proba = modelo.predict_proba(X)[0]
-    
     p_compra = float(proba[0])
-    p_desiste = float(proba[1])
     
     raw = p_compra
     calibrated = 1 / (1 + math.exp(-8 * (raw - 0.85)))
-    
     score = round(calibrated, 4)
 
     if score >= 0.70:
@@ -119,6 +129,12 @@ class BatchScoreRequest(BaseModel):
 
 @app.post("/api/score/batch")
 def score_batch(req: BatchScoreRequest):
+    try:
+        data = get_model_data()
+        modelo = data["modelo"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al cargar el modelo: {str(e)}")
+
     rows = []
     for lead in req.leads:
         rows.append({
@@ -134,11 +150,10 @@ def score_batch(req: BatchScoreRequest):
         })
 
     X = pd.DataFrame(rows)
-    modelo = model_data["modelo"]
     probas = modelo.predict_proba(X)[:, 0]
 
     results = []
-    for i, prob in enumerate(probas):
+    for prob in probas:
         raw = float(prob)
         calibrated = 1 / (1 + math.exp(-8 * (raw - 0.85)))
         score = round(calibrated, 4)
@@ -155,8 +170,16 @@ def score_batch(req: BatchScoreRequest):
 
 @app.get("/api/health")
 def health():
+    try:
+        data = get_model_data()
+        model_name = data.get("nombre") if data else None
+        features = data.get("features") if data else None
+    except Exception:
+        model_name = None
+        features = None
+
     return {
         "status": "ok",
-        "model": model_data["nombre"] if model_data else None,
-        "features": model_data["features"] if model_data else None,
+        "model": model_name,
+        "features": features,
     }
