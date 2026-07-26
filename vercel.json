@@ -4,5 +4,10 @@
         "src": "/api/(.*)",
         "dest": "api/main.py"
       }
-    ]
+    ],
+    "functions": {
+      "api/main.py": {
+        "includeFiles": "api/data/modelo_scoring.pkl"
+      }
+    }
   }
