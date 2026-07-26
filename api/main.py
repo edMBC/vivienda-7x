@@ -5,6 +5,7 @@ Sirve el modelo de ML via FastAPI para el frontend Next.js.
 import pickle
 import math
 import os
+import pathlib
 import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,19 +28,25 @@ def get_model_data():
     global model_data
     if model_data is None:
         try:
-            base = os.path.dirname(os.path.abspath(__file__))
-            path = os.path.join(base, "data", "modelo_scoring.pkl")
+            # Usar pathlib para encontrar con absoluta seguridad el archivo sin importar el sistema operativo
+            current_dir = pathlib.Path(__file__).parent.resolve()
+            path = current_dir / "data" / "modelo_scoring.pkl"
             
-            if not os.path.exists(path):
-                raise FileNotFoundError(f"No se encontró el modelo en: {path}")
+            # Intentar buscar en rutas alternativas de Vercel por si cambia el directorio de trabajo
+            if not path.exists():
+                path = pathlib.Path("api/data/modelo_scoring.pkl").resolve()
+
+            if not path.exists():
+                raise FileNotFoundError(f"No se encontró el modelo en ninguna ruta probada. Buscado en: {path}")
                 
             with open(path, "rb") as f:
                 model_data = pickle.load(f)
-            print(f"Modelo cargado exitosamente: {model_data.get('nombre', 'Desconocido')}")
+            print(f"Modelo cargado correctamente desde: {path}")
+            
         except Exception as e:
             import traceback
-            print(f"ERROR AL CARGAR MODELO: {traceback.format_exc()}")
-            raise HTTPException(status_code=500, detail=f"Error cargando modelo: {str(e)}")
+            detalle = traceback.format_exc()
+            raise HTTPException(status_code=500, detail=f"Fallo crítico al cargar el modelo: {str(e)} | Trace: {detalle}")
     return model_data
 
 # Carga inicial opcional para local
